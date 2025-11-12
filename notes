@@ -1,0 +1,24 @@
+Options for running
+
+1. activate environment, then run py files:
+    - navigate to confocal_processing directory
+    - activate environemt: poetry shell
+    - run file: python confocal_processing\your_script.py
+
+    What this does
+    - enter a new shell with the virtual environment fully activated. every command
+      you run in this shell will use the virtual environment's python and packages.
+    - good for running multiple commands in the environment
+
+2. run command without entering shell:
+    - navigate to confocal_processing directory
+    - run file right away: poetry run python your_script.py
+
+    What this does
+    - you don't enter a new shell. Each command you run with "poetry run" will temporarily activate the environment just for that command.
+    - good for running single commands without needing to enter a new shell
+
+**Current problem**
+works when i do option 2, but if i try option 1, i get ModuleNotFoundError: No module named 'napari'
+now my .toml file is not valid and i cant run anything: C:/Users/labudzki/OneDrive - AMOLF/Documents/Repositories/confocal_processing/pyproject.toml is not a valid TOML file.
+TOMLDecodeError: Unclosed array (at line 18, column 5)
