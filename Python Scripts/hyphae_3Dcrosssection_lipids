@@ -1,0 +1,166 @@
+
+# %% initilize
+import numpy as np
+import matplotlib.pyplot as plt
+import imageio
+import os
+
+data = np.load(r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\Mov21\Mov21\Mov21_cropped_251119.npy")
+print(data.shape)
+data_frame0 = data[0]  
+print(f"Data shape: {data_frame0.shape}")
+
+output_folder = r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\Mov21\Mov21"
+os.makedirs(output_folder, exist_ok=True)
+
+# Obtain the first z images in the stack
+subset = data[:3, 1, :, :]  # Shape will be (3, 83, 415)
+
+output_path_firstz = os.path.join(output_folder, "first_three_z_images.png")
+fig, axes = plt.subplots(3, 1, figsize=(15, 5))
+for i in range(3):
+    axes[i].imshow(subset[i], cmap='gray')  # Use grayscale colormap
+    axes[i].set_title(f"Z=0, t={i+1}")
+    axes[i].axis('off')
+
+plt.tight_layout()
+plt.savefig(output_path_firstz, dpi=300, bbox_inches='tight')
+plt.show()
+
+# Compute scaled Z coordinates
+z_spacing = 1/0.10833  # original z spacing in um
+z_scaled = np.arange(data_frame0.shape[0]) * z_spacing
+y_scaled = np.arange(data_frame0.shape[1])
+x_scaled = np.arange(data_frame0.shape[2])
+
+#%% Plot cross-section at center X with scaled Z axis
+# Now take the cross-section at center X
+center_x = data_frame0.shape[2] // 2
+cross_section = data_frame0[:, :, center_x]
+
+plt.imshow(cross_section, cmap='inferno',
+           extent=[y_scaled.min(), y_scaled.max(), z_scaled.min(), z_scaled.max()],
+           aspect='auto')
+plt.title("Cross-Section at Center X (Z scaled by 10)")
+plt.xlabel("Y")
+plt.ylabel("Z (scaled)")
+plt.colorbar(label="Intensity")
+plt.show()
+
+#%% Plot max projection along X
+output_path_maxx = os.path.join(output_folder, "max_projection_x.png")
+max_proj_x = np.max(data_frame0[:, :, 0:50], axis=2)
+plt.imshow(max_proj_x, cmap='inferno',
+           extent=[y_scaled.min(), y_scaled.max(), z_scaled.min(), z_scaled.max()])
+           #,aspect='auto')
+plt.title("Max Projection along X")
+plt.xlabel("Y")
+plt.ylabel("Z")
+plt.colorbar(label="Intensity")
+plt.savefig(output_path_maxx, dpi=300, bbox_inches='tight')
+plt.show()
+
+#%% Plot max projection along Y
+output_path_maxy = os.path.join(output_folder, "max_projection_y.png")
+max_proj_y = np.max(data_frame0[:, :, :], axis=1)
+max_proj_y = np.average(data_frame0[:, :, :], axis=1)
+plt.imshow(max_proj_y, cmap='inferno',
+           extent=[x_scaled.min(), x_scaled.max(), z_scaled.min(), z_scaled.max()])
+           #,aspect='auto')
+plt.title("Max Projection along Y")
+plt.xlabel("X")
+plt.ylabel("Z")
+plt.colorbar(label="Intensity")
+plt.savefig(output_path_maxy, dpi=300, bbox_inches='tight')
+plt.show()
+
+#%% Plot avg projection along X
+output_path_avgx = os.path.join(output_folder, "avg_projection_x.png")
+avg_proj_x = np.average(data_frame0[:, :, :], axis=2)
+plt.imshow(avg_proj_x, cmap='inferno',
+           extent=[y_scaled.min(), y_scaled.max(), z_scaled.min(), z_scaled.max()])
+           #,aspect='auto')
+plt.title("Avg Projection along X")
+plt.xlabel("Y")
+plt.ylabel("Z")
+plt.colorbar(label="Intensity")
+plt.savefig(output_path_avgx, dpi=300, bbox_inches='tight')
+plt.show()
+
+#%% Plot avg projection along Y
+output_path_avgy = os.path.join(output_folder, "avg_projection_y.png")
+avg_proj_y = np.average(data_frame0[:, :, :], axis=1)
+plt.imshow(avg_proj_y, cmap='inferno',
+           extent=[x_scaled.min(), x_scaled.max(), z_scaled.min(), z_scaled.max()])
+           #,aspect='auto')
+plt.title("Avg Projection along Y")
+plt.xlabel("X")
+plt.ylabel("Z")
+plt.colorbar(label="Intensity")
+plt.savefig(output_path_avgy, dpi=300, bbox_inches='tight')
+plt.show()
+
+
+#%% Make a gif of cross-sections along X
+gif_images_x = []
+for x in range(data_frame0.shape[2]):
+    cross_section = data_frame0[:, :, x]
+    fig, ax = plt.subplots()
+    im = ax.imshow(cross_section, cmap='inferno',
+                   extent=[y_scaled.min(), y_scaled.max(), z_scaled.min(), 100]) # z_scaled.max()])
+                   #,aspect='auto')
+    ax.set_title(f"Cross-Section at X={x}")
+    ax.set_xlabel("Y")
+    ax.set_ylabel("Z")
+    # plt.colorbar(im, ax=ax, label="Intensity")
+    
+    # Save figure to a temporary buffer
+    fig.canvas.draw()
+    image = np.asarray(fig.canvas.buffer_rgba())
+    # image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+    # image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    gif_images_x.append(image)
+    plt.close(fig)
+
+# Save the gif
+output_path = os.path.join(output_folder, "cross_sections_along_X.gif")
+imageio.mimsave(output_path, gif_images_x, fps=5)
+
+#%% Make a gif of cross-sections along Y
+gif_images_y = []
+for y in range(data_frame0.shape[1]):
+    cross_section = data_frame0[:, y, :]
+    fig, ax = plt.subplots()
+    im = ax.imshow(cross_section, cmap='inferno',
+                   extent=[x_scaled.min(), x_scaled.max(), z_scaled.min(), z_scaled.max()])
+                   #,aspect='auto')
+    ax.set_title(f"Cross-Section at Y={y}")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Z")
+    # plt.colorbar(im, ax=ax, label="Intensity")
+    
+    # Save figure to a temporary buffer
+    fig.canvas.draw()
+    image = np.asarray(fig.canvas.buffer_rgba())
+    # image = np.frombuffer(fig.canvas.tostring_rgb(), dtype='uint8')
+    # image = image.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    gif_images_y.append(image)
+    plt.close(fig)
+
+# Save the gif
+output_folder = r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\Mov21\Mov21"
+os.makedirs(output_folder, exist_ok=True)
+output_path = os.path.join(output_folder, "cross_sections_along_Y.gif")
+imageio.mimsave(output_path, gif_images_y, fps=5)
+
+
+# %%Plot a composite image of all z-slices in frame 0
+composite_image = np.sum(data_frame0, axis=2)   
+plt.imshow(composite_image, cmap='inferno')
+plt.title("Composite Image of All Z-Slices in Frame 0")
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.colorbar(label="Intensity")
+plt.show()
+
+# 
