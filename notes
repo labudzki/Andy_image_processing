@@ -18,13 +18,6 @@ Options for running
     - you don't enter a new shell. Each command you run with "poetry run" will temporarily activate the environment just for that command.
     - good for running single commands without needing to enter a new shell
 
-**Current problem**
-works when i do option 2, but if i try option 1, i get ModuleNotFoundError: No module named 'napari'
-now my .toml file is not valid and i cant run anything: C:/Users/labudzki/OneDrive - AMOLF/Documents/Repositories/confocal_processing/pyproject.toml is not a valid TOML file.
-TOMLDecodeError: Unclosed array (at line 18, column 5)
-also poetry run your_script.py works but run-> run without debugging and also activating shell then python your_script.py dont work. both show ModuleNotFoundError: No module named 'napari'
-i navigate into LOCOMYCO but when i press run without debugging it goes back into Repositories
-
 poetry
 poetry add ___ : adds a package to the environment and updates pyproject.toml
 poetry lock : generates or updates the poetry.lock file based on the pyproject.toml

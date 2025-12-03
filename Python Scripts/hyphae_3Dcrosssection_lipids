@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 import imageio
 import os
 
-data = np.load(r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\Mov21\Mov21\Mov21_cropped_251119.npy")
+data = np.load(r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\SAL2506A042\Mov21_cropped_251119.npy")
 print(data.shape)
 data_frame0 = data[0]  
 print(f"Data shape: {data_frame0.shape}")
 
-output_folder = r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\Mov21\Mov21"
+output_folder = r"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\SAL2506A042\Mov21"
 os.makedirs(output_folder, exist_ok=True)
 
 # Obtain the first z images in the stack
