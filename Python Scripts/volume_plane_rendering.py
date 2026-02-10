@@ -20,8 +20,8 @@ path_movie = Path(
 # rf"c:\Users\labudzki\OneDrive - AMOLF\Desktop\Data\HSE2508A264\Run{fnum}\Run{fnum}_MMStack_Pos0.ome.tif"
 # rf"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\SAL2506A042\Mov21_MMStack_Pos0.ome.tif" #magnification 50X
 # rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251125\CFL2510A002\Run{fnum}\Run{fnum}_MMStack_Pos0.ome.tif"
-rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run17\Run17_MMStack_Pos0.ome.tif"
-# rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run5\Run5_MMStack_Pos0.ome.tif"
+# rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run17\Run17_MMStack_Pos0.ome.tif"
+rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run19\Run19_MMStack_Pos0.ome.tif"
 # rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251125\CFL2510A002\Run10\Run10_MMStack_Pos0.ome.tif"
 )
 
@@ -45,7 +45,7 @@ for p in planes:
 # print(z_positions)
 # z_interval = z_positions[1] - z_positions[0]
 z_interval = 1 #um
-#z_interval = 0.5 #um
+# z_interval = 0.5 #um
 
 pixel_size = 6.5 #um
 magnification = 60  # adjust based on data
@@ -68,7 +68,7 @@ volume_layer = viewer.add_image(
     blending= 'translucent', #'opaque', # 'additive', 
     opacity=1,
     colormap = 'inferno', 
-    interpolation = 'spline36'
+    # interpolation = 'spline36'
     # contrast_limits=[144, 258],
     # contrast_limits=[158, 337],
     scale=my_scale

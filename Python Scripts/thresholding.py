@@ -76,7 +76,17 @@ plt.hist(stack.ravel(), bins=300, color='blue', alpha=0.7) #ravel flattens the a
 plt.title('Histogram of Original Image Intensities')
 plt.xlabel('Intensity Value')
 plt.ylabel('Frequency')
+#%%
 
+plt.figure(figsize=(12, 5))
+plt.hist(stack.ravel(), bins=300, color='blue', alpha=0.7)
+plt.title('Histogram of Non-Zero Image Intensities')
+plt.xlabel('Intensity Value')
+plt.ylabel('Frequency')
+plt.xlim(10, 300) #limit x-axis to better visualize the distribution of non-zero pixels
+plt.ylim(0, 10000)
+plt.show()
+#%%
 # Bottom-right: histogram of blurred
 # plt.subplot(2, 2, 4)
 
@@ -162,7 +172,7 @@ plt.show()
 
 #%% Create mask for fluorescence signal above 
 # ----------------------------------------------------------------------    
-t_fluo = 100 #this seems to be too high, change to slightly lower value
+t_fluo = 120 #this seems to be too high, change to slightly lower value
 binary_mask_fluo = selection > t_fluo
 # binary_mask_cleaned = ski.morphology.remove_small_objects(binary_mask, min_size = 1000, connectivity=2)
 
@@ -171,28 +181,7 @@ t_otsu_fluo = ski.filters.threshold_otsu(selection[selection>0]) #only consider 
 binary_mask_fluo_otsu = selection > t_otsu_fluo
 print("Otsu threshold fluo t = {}.".format(t_otsu_fluo))
 
-plt.figure(figsize=(12, 5))
-
-# plt.subplot(1, 2, 1)
-# plt.imshow(selection, cmap="gray")
-# plt.title('Image after applying bg mask')
-# plt.axis('off')
-fname = "fluorescence_masks.png"
-plt.subplot(1, 2, 1)
-plt.imshow(binary_mask_fluo, cmap="gray")
-plt.title('Binary mask manual for fluorescence')
-plt.axis('off')
-
-plt.subplot(1, 2, 2)
-plt.imshow(binary_mask_fluo_otsu, cmap="gray")
-plt.title('Binary mask Otsu for fluorescence')
-plt.axis('off')
-
-plt.tight_layout()
-# plt.savefig(os.path.join(output_dir, fname), dpi=600, bbox_inches="tight")
-plt.show()
-
-#%% Calculate lipid volume %
+# Calculate lipid volume %
 # ----------------------------------------------------------------------
 num_fluo_pixels = np.sum(binary_mask_fluo)    
 num_fluo_pixels_otsu = np.sum(binary_mask_fluo_otsu)  
@@ -204,6 +193,34 @@ print(f"Num of fluorescent pixels otsu: {num_fluo_pixels_otsu}")
 print(f"Total num hyphae pixels: {num_hyphae_pixels}")
 print(f"Lipid volume percentage: {lipid_volume_percent:.2f}%")
 print(f"Lipid volume percentage otsu: {lipid_volume_percent_otsu:.2f}%")
+
+plt.figure(figsize=(12, 5))
+
+# plt.subplot(1, 2, 1)
+# plt.imshow(selection, cmap="gray")
+# plt.title('Image after applying bg mask')
+# plt.axis('off')
+fname = "fluorescence_mask_manual.png"
+# plt.subplot(1, 2, 1)
+plt.imshow(binary_mask_fluo, cmap="gray")
+plt.title('Binary mask manual, lipid volume: {:.0f}%'.format(lipid_volume_percent), fontsize = 24)
+plt.axis('off')
+plt.savefig(os.path.join(output_dir, fname), dpi=800, bbox_inches="tight")
+plt.show()
+
+fname = "fluorescence_mask_otsu.png"
+# plt.subplot(1, 2, 2)
+plt.imshow(binary_mask_fluo_otsu, cmap="gray")
+plt.title('Binary mask Otsu, lipid volume: {:.0f}%'.format(lipid_volume_percent_otsu), fontsize = 16)
+plt.axis('off')
+plt.savefig(os.path.join(output_dir, fname), dpi=800, bbox_inches="tight")
+plt.show()
+
+# plt.tight_layout()
+# plt.savefig(os.path.join(output_dir, fname), dpi=600, bbox_inches="tight")
+
+
+
 
 #
 # #%%Run napari
