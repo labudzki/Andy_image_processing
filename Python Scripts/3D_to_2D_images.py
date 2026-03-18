@@ -11,13 +11,14 @@ path_movie = Path(
 # rf"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\SAL2506A042\Mov21_MMStack_Pos0.ome.tif" #magnification 50X
 # rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251125\CFL2510A002\Run7\Run7_MMStack_Pos0.ome.tif"
 # rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251125\CFL2510A002\Run10\Run10_MMStack_Pos0.ome.tif"
-rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run19\Run19_MMStack_Pos0.ome.tif"
+# rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run19\Run19_MMStack_Pos0.ome.tif"
+rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\x. SetUp Charac\Point spread function\260316\PSF_20x_nanobeads680-605\PSF_20x_nanobeads680-605_MMStack_Pos0.ome.tif"
 )
 
-# output_path = Path(rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\Analysis\251128\CFL2510A005\Run19")
+output_path = Path(rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\x. SetUp Charac\Point spread function\260316\PSF_20x_nanobeads680-605")
 
 # Path to the Images folder in this repo
-images_dir = Path(__file__).resolve().parents[1] / "Images"
+# images_dir = Path(__file__).resolve().parents[1] / "Images"
 
                   
                 
@@ -31,9 +32,10 @@ with TiffFile(path_movie) as tif:
 print(stack.shape, stack.dtype)  
 
 # Select a specific slice from the 3D stack (e.g., slice index 10)
-slice_index_t = 20 # first dim
-slice_index_z = 9  # second dim
-output_stack = stack[slice_index_t, slice_index_z, :, :]
+slice_index_t = 56 # first dim
+# slice_index_z = 9  # second dim
+output_stack = stack[slice_index_t, :, :]
+# output_stack = stack[slice_index_t, slice_index_z, :, :]
 print(output_stack.shape, output_stack.dtype)
 
 # # Print image
@@ -43,7 +45,7 @@ print(output_stack.shape, output_stack.dtype)
 # # plt.savefig(images_dir / f"251128_CFL2510A005_Run19_2D_slice_t{slice_index_t}_z{slice_index_z}.png", dpi=300)
 # plt.show()
 
-imwrite(images_dir / f"251128_CFL2510A005_Run19_2D_slice_t{slice_index_t}_z{slice_index_z}.tif", output_stack)
+imwrite(output_path / f"PSF_20x_nanobeads680-605_MMStack_Pos0_t{slice_index_t}.tif", output_stack)
 
 # # Save the selected slice as a 2D image file
 # output_file = output_path / f"Run19_t{slice_index_t}_z{slice_index_z}.tif"

@@ -2,7 +2,7 @@
 from PIL import Image
 import os   
 
-input_path = r"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\NETWORK_VISU\001_CFL2510A\stitch\20251202_0622.tif"
+input_path = r"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\NETWORK_VISU\011_CFL2510A\stitch\20251202_1822.tif"
 output_path = r"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\Andrea Labudzki\Posters"
 
 def convert_tif_to_png(input_path, output_path):

@@ -148,7 +148,7 @@ plt.axis('off')
 plt.show()
 
 
-#%% Apply mask to original image
+#%% Apply manual mask to original image
 selection = stack.copy()
 selection[~binary_mask_cleaned] = 0
 
@@ -172,7 +172,7 @@ plt.show()
 
 #%% Create mask for fluorescence signal above 
 # ----------------------------------------------------------------------    
-t_fluo = 120 #this seems to be too high, change to slightly lower value
+t_fluo = 130 #this seems to be too high, change to slightly lower value
 binary_mask_fluo = selection > t_fluo
 # binary_mask_cleaned = ski.morphology.remove_small_objects(binary_mask, min_size = 1000, connectivity=2)
 
@@ -237,8 +237,6 @@ plt.show()
 # set threshold for staining
 
 # # of pixels above threshold
-
-
 
 
 # %%
