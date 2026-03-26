@@ -3,7 +3,6 @@ import napari
 import numpy as np
 from tifffile import imwrite, TiffFile
 from pathlib import Path
-from LOCOMYCO_ImgAnalysis import tifreading as u_tif
 import matplotlib.pyplot as plt
 
 path_movie = Path(

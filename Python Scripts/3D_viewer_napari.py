@@ -2,7 +2,7 @@ import napari
 import numpy as np
 from tifffile import TiffFile
 from pathlib import Path
-from LOCOMYCO_ImgAnalysis import tifreading as u_tif
+# from LOCOMYCO_ImgAnalysis import tifreading as u_tif
 
 fnum = 3
 
@@ -19,7 +19,7 @@ with TiffFile(path_movie) as tif:
     stack = tif.asarray()
     
 
-#stack=u_tif.load_tiff_stack(path_movie, squeeze=True)
+#stack=u_tif.load_tiff_stack(path_movie, squeeze=True) # u_tif is from locomyco
 
 stack = np.array(stack, dtype='float32')  # reduce memory usage
 

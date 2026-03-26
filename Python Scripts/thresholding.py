@@ -5,7 +5,7 @@ import numpy as np
 from tifffile import TiffFile
 from PIL import Image 
 from pathlib import Path
-from LOCOMYCO_ImgAnalysis import tifreading as u_tif
+# from LOCOMYCO_ImgAnalysis import tifreading as u_tif
 import matplotlib.pyplot as plt
 import skimage as ski
 import os

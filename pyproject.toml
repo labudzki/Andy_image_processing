@@ -1,5 +1,5 @@
 [project]
-name = "confocal-processing"
+name = "Andy-image-processing"
 version = "0.1.0"
 description = "Functions to process confocal imaging"
 authors = [
@@ -10,7 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "napari (>=0.6.6,<0.7.0)",
     "numpy (>=2.3.4,<3.0.0)",
-    "locomyco-imganalysis @ git+https://github.com/labudzki/LOCOMYCO_ImgAnalysis.git",
+    # "locomyco-imganalysis @ git+https://github.com/labudzki/LOCOMYCO_ImgAnalysis.git",
+    # "locomyco-imganalysis @ git+https://github.com/AchilleJoliot/LOCOMYCO_ImgAnalysis.git",
     "matplotlib (>=3.10.7,<4.0.0)",
     "scipy (>=1.16.3,<2.0.0)",
     "pandas (>=2.3.3,<3.0.0)",
