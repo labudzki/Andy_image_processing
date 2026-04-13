@@ -11,9 +11,16 @@ from datetime import datetime
 # -----------------------------
 # USER INPUT
 # -----------------------------
-image_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/260316/PSF_20x_nanobeads680-605/PSF_20x_nanobeads680-605_MMStack_Pos0_t56.tif'
-csv_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/260316/PSF_crops/PSF_crops2_coords.csv'
-output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/260316/PSF_crops/PSF_output_{datetime.now():%Y%m%d_%H%M}"
+# 20x PSF measurement:
+# image_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/260316/PSF_20x_nanobeads680-605/PSF_20x_nanobeads680-605_MMStack_Pos0_t56.tif'
+# csv_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/20x_objective/PSF_crops/PSF_crops_coords.csv'
+# output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/20x_objective/PSF_crops/PSF_output_{datetime.now():%Y%m%d_%H%M}"
+# os.makedirs(output_dir, exist_ok=True)
+
+# 60x PSF measurment:
+image_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/260410_60x/Run03/Run03_MMStack_Pos0.ome.tif'
+csv_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/60x_objective/PSF_crops/PSF_crops_coords.csv'
+output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/60x_objective/PSF_crops/PSF_output_{datetime.now():%Y%m%d_%H%M}"
 os.makedirs(output_dir, exist_ok=True)
 
 # -----------------------------
@@ -54,7 +61,7 @@ def extract_fixed_window(img, center_rc, window_size=21):
     return patch
 
 def align_bead_crosscorr(bead, reference):
-    shift_est, _, _ = registration.phase_cross_correlation(reference, bead, upsample_factor=50)
+    shift_est, _, _ = registration.phase_cross_correlation(reference, bead, upsample_factor=1)
     return shift(bead, shift=shift_est, mode='nearest', order=1)
 
 # -----------------------------

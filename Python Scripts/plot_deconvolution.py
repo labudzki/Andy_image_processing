@@ -21,15 +21,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tifffile import imwrite, TiffFile
 from pathlib import Path
-
 from scipy.signal import convolve2d as conv2
-
 from skimage import color, data, restoration
+from PIL import Image
 
 # ---------------------
-# Creating random noise - dont think i need this
+# Creating random noise 
 # ---------------------
-rng = np.random.default_rng()
+# rng = np.random.default_rng()
 
 
 # ---------------------
@@ -37,18 +36,30 @@ rng = np.random.default_rng()
 # ---------------------
 # astro = color.rgb2gray(data.astronaut())
 path_movie = Path(
-rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run02/Run02_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run03/Run03_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/250721/SAL2506A042/Mov20/Mov20_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260401/CFL2601A058/Run07/Run07_MMStack_Pos0.ome.tif'
+rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run5/Run5_MMStack_Pos0.ome.tif'
 )
 
 with TiffFile(path_movie) as tif:
     stack = tif.asarray()
 
-print(stack.shape, stack.dtype)  
-#%%
-# # Select a specific slice from the 2D stack (e.g., slice index 10)
+# Select a specific slice from the 2D stack (e.g., slice index 10)
 slice_index_t = 70 # first dim
-# # slice_index_z = 9  # second dim
 astro = stack[slice_index_t, :, :]
+
+print(astro.shape, astro.dtype, astro.min(), astro.max())
+
+# Subtract background before normalizing
+astro = astro - astro.min()  # or use a proper background ROI if you have one
+
+# Normalize
+astro = astro / astro.max()
+#%%
+
 
 
 
@@ -56,12 +67,20 @@ astro = stack[slice_index_t, :, :]
 # Import experimental PSF
 # ---------------------
 # psf = np.ones((5, 5)) / 25
-psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/260316/PSF_crops/PSF_output/avg_psf.npy')
 
+#20x PSF
+# psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/20x_objective/PSF_crops/PSF_output_20260410_1045/avg_psf.npy')
+
+#60x PSF
+psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/60x_objective/PSF_crops/PSF_output_20260413_0932/avg_psf.npy')
 # Normalize so it sums to 1 (required for RL deconvolution)
 psf = psf / psf.sum()
 
-astro = conv2(astro, psf, 'same')
+print("image slice shape:", astro.shape)  # should be (712, 1008)
+print("PSF shape:", psf.shape)            # should also be 2D
+
+# Artificial blurring of the image using convolution with the PSF
+# astro = conv2(astro, psf, 'same')
 # # Add Noise to Image
 # astro_noisy = astro.copy()
 # astro_noisy += (rng.poisson(lam=25, size=astro.shape) - 10) / 255.0
@@ -90,3 +109,24 @@ ax[1].set_title('Restoration using\nRichardson-Lucy')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
 plt.show()
+
+# Save deconvolved image
+save_path = Path(
+    rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/251128/CFL2510A005/Run5/Run5_t{slice_index_t}_deconvolved_RL.tif'
+)
+deconvolved_uint16 = (deconvolved_RL * 65535).astype(np.uint16) #the image is normalized between 0 and 1, so we scale it to the uint16 range
+imwrite(save_path, deconvolved_uint16)
+
+astro_uint8 = (astro * 255).astype(np.uint8)
+deconvolved_uint8 = (deconvolved_RL * 255).astype(np.uint8)
+
+
+save_path_original_png = Path(
+    rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/251128/CFL2510A005/Run5/Run5_t{slice_index_t}_original.png'
+)
+
+save_path_deconvolved_png = Path(
+    rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/251128/CFL2510A005/Run5/Run5_t{slice_index_t}_deconvolved_RL.png'
+)
+Image.fromarray(astro_uint8).save(save_path_original_png)
+Image.fromarray(deconvolved_uint8).save(save_path_deconvolved_png)
