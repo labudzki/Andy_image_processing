@@ -141,7 +141,7 @@ file_path = Path(r"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\x. SetU
 with TiffFile(file_path) as tif:
     stack = tif.asarray()
 
-# pick first plane if stack
+# pick first plane of stack
 img2d = stack[0].astype('float32') if stack.ndim > 2 else stack.astype('float32')
 
 
@@ -154,9 +154,8 @@ crop_layer_names = []                  # list[str]        : napari layer names f
 # Important: these lists share the SAME index order as points_layer.data rows.
 
 
-
 # -------------------------------
-# NAPARI VIEWER (unchanged up to here)
+# NAPARI VIEWER
 # -------------------------------
 viewer = napari.Viewer()
 raw_layer = viewer.add_image(img2d, name='Raw img', axis_labels=['Y','X'])
