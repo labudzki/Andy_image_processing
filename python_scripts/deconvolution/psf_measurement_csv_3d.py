@@ -26,26 +26,6 @@ def normalize(im):
         im = im / np.max(im)
     return im
 
-def extract_fixed_window(img, center_rc, window_size=21):
-    """Return a window_size x window_size patch around center_rc (row, col)."""
-    half = window_size // 2
-    r, c = center_rc
-    r1, r2 = r - half, r + half + 1
-    c1, c2 = c - half, c + half + 1
-
-    # handle edges by padding if necessary
-    patch = np.zeros((window_size, window_size), dtype=img.dtype)
-    H, W = img.shape
-    r1_clip, r2_clip = max(0, r1), min(H, r2)
-    c1_clip, c2_clip = max(0, c1), min(W, c2)
-    patch[(r1_clip - r1):(r2_clip - r1), (c1_clip - c1):(c2_clip - c1)] = img[r1_clip:r2_clip, c1_clip:c2_clip]
-    return patch
-
-def align_bead_crosscorr(bead, reference):
-    shift_est, _, _ = registration.phase_cross_correlation(reference, bead, upsample_factor=1)
-    return shift(bead, shift=shift_est, mode='nearest', order=1)
-
-
 # # -----------------------------
 # # USER INPUT
 # # -----------------------------
@@ -55,6 +35,9 @@ image_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/D
 csv_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/PSF_crops_coords.csv'
 output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/PSF_output_{datetime.now():%Y%m%d_%H%M}"
 os.makedirs(output_dir, exist_ok=True)
+
+z_interval_um = 0.2 #um INPUT MANUALLY
+save_bool = True #True if you want to save PSF info and plot
 
 
 # # -----------------------------
@@ -78,11 +61,6 @@ df = pd.read_csv(csv_path)
 # # img = imread(image_path).astype(float)
 # # df = pd.read_csv(csv_path)
 
-
-# -----------------------------
-# PARAMETERS
-# -----------------------------
-bead_window = 21  # size of extracted bead window
 
 # -----------------------------
 # PROCESS BEADS
@@ -163,10 +141,11 @@ avg_profile_z = np.mean([entry["profile"] for entry in profiles_z], axis=0)
 # # -----------------------------
 # # SAVE OUTPUT
 # # -----------------------------
-np.save(f"{output_dir}/avg_axial_psf.npy", avg_profile_z)
-# np.save(f"{output_dir}/avg_profile_x.npy", avg_profile_x)
-# np.save(f"{output_dir}/avg_profile_y.npy", avg_profile_y)
-pd.DataFrame(avg_profile_z, columns=["intensity"]).to_csv(f"{output_dir}/avg_axial_psf.csv", index=False)
+if save_bool:
+    np.save(f"{output_dir}/avg_axial_psf.npy", avg_profile_z)
+    # np.save(f"{output_dir}/avg_profile_x.npy", avg_profile_x)
+    # np.save(f"{output_dir}/avg_profile_y.npy", avg_profile_y)
+    pd.DataFrame(avg_profile_z, columns=["intensity"]).to_csv(f"{output_dir}/avg_axial_psf.csv", index=False)
 
 
 
@@ -185,107 +164,136 @@ pd.DataFrame(avg_profile_z, columns=["intensity"]).to_csv(f"{output_dir}/avg_axi
 # plt.ylabel("Intensity")
 # plt.show()
 
+# get xy positions for color mapping
+peak_positions = [(reference_z[entry["bead_id"]]["best_z_peak_yx_loc_global"]) for entry in profiles_z]
+x_positions = np.array([p[1] for p in peak_positions])  # x (col)
+y_positions = np.array([p[0] for p in peak_positions])  # y (row)
+norm_x = plt.Normalize(vmin=x_positions.min(), vmax=x_positions.max()) #normalizes the x and y positions to match them to a colormap 
+norm_y = plt.Normalize(vmin=y_positions.min(), vmax=y_positions.max())
+cmap_x = plt.cm.viridis
+cmap_y = plt.cm.plasma
+z_axis = np.arange(stack.shape[0]) * z_interval_um #to scale the z axis to real units (um) instead of slice index
+
+
+# Compare PSF profiles colored by x position, and bead positions in the FOV colored by x position. 
 sns.set_theme(style="darkgrid")
+fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
 
-fig, ax = plt.subplots()
+# --- Top left: axial profiles colored by x position ---
+for entry, x_pos in zip(profiles_z, x_positions): # plot each bead's axial profile with color determined by x position
+    ax1.plot(z_axis, entry["profile"], color=cmap_x(norm_x(x_pos)), alpha=0.7)
+ax1.plot(z_axis, avg_profile_z, color='black', linewidth=2, label="Average")
+sm_x = plt.cm.ScalarMappable(cmap=cmap_x, norm=norm_x) #scalarmappable object to create colorbar
+sm_x.set_array([])
+plt.colorbar(sm_x, ax=ax1, label="X position (px)")
+ax1.set_title("Axial PSF Profiles (colored by X position)")
+ax1.set_xlabel("Z (\u03bcm)")
+ax1.set_ylabel("Intensity")
+ax1.legend()
 
-# individual bead profiles
-for entry in profiles_z:
-    ax.plot(entry["profile"], label=f"Bead {entry['bead_id']}", alpha=0.6)
+# --- Top right: bead positions colored by x ---
+img_h, img_w = stack.shape[1], stack.shape[2]
+ax2.set_xlim(0, img_w)
+ax2.set_ylim(img_h, 0) # flipped so y=0 is at top, matching image coords
+ax2.set_facecolor("black")
+ax2.set_aspect("equal")
+for entry, x_pos, y_pos in zip(profiles_z, x_positions, y_positions): #plots each bad as a dot in its (x,y) pos in the FOV. colored the same way as in ax1
+    ax2.scatter(x_pos, y_pos, color=cmap_x(norm_x(x_pos)), s=80, zorder=5)
+    ax2.text(x_pos + 15, y_pos, str(entry["bead_id"]), color='white', fontsize=8)
+plt.colorbar(sm_x, ax=ax2, label="X position (px)")
+ax2.set_title("Bead positions in FOV (colored by X position)")
+ax2.set_xlabel("X (px)")
+ax2.set_ylabel("Y (px)")
 
-# average profile on top
-ax.plot(avg_profile_z, label="Average Z Profile", color='black', linewidth=2)
+# --- Bottom left: axial profiles colored by y position ---
+for entry, y_pos in zip(profiles_z, y_positions):
+    ax3.plot(z_axis, entry["profile"], color=cmap_y(norm_y(y_pos)), alpha=0.7)
+ax3.plot(z_axis, avg_profile_z, color='black', linewidth=2, label="Average")
+sm_y = plt.cm.ScalarMappable(cmap=cmap_y, norm=norm_y)
+sm_y.set_array([])
+plt.colorbar(sm_y, ax=ax3, label="Y position (px)")
+ax3.set_title("Axial PSF Profiles (colored by Y position)")
+ax3.set_xlabel("Z (\u03bcm)")
+ax3.set_ylabel("Intensity")
+ax3.legend()
 
-ax.set_title("Axial PSF Profiles")
-ax.set_xlabel("Z slice")
-ax.set_ylabel("Intensity")
-ax.legend()
-plt.savefig(f"{output_dir}/avg_axial_psf_profiles.png", dpi=300)
+# --- Bottom right: bead positions colored by y ---
+ax4.set_xlim(0, img_w)
+ax4.set_ylim(img_h, 0)
+ax4.set_facecolor("black")
+ax4.set_aspect("equal")
+for entry, x_pos, y_pos in zip(profiles_z, x_positions, y_positions):
+    ax4.scatter(x_pos, y_pos, color=cmap_y(norm_y(y_pos)), s=80, zorder=5)
+    ax4.text(x_pos + 15, y_pos, str(entry["bead_id"]), color='white', fontsize=8)
+plt.colorbar(sm_y, ax=ax4, label="Y position (px)")
+ax4.set_title("Bead positions in FOV (colored by Y position)")
+ax4.set_xlabel("X (px)")
+ax4.set_ylabel("Y (px)")
+
+plt.tight_layout()
+if save_bool:
+    plt.savefig(f"{output_dir}/avg_axial_psf_profiles.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
-# # Find XY peak location at reference z, then extract bead patch and max intensity per z at peak location
-# for i, group in grouped:
-#     vertices = group[["axis-0", "axis-1"]].values
-#     crop = crop_from_vertices(img, vertices)
-#     if crop.size == 0:
-#         continue
+# # Compare PSF profiles colored by y position, and bead positions in the FOV colored by y position. 
 
-#     # find peak inside crop
-#     local_peak = np.unravel_index(np.argmax(crop), crop.shape)
-#     global_peak = (int(local_peak[0] + np.min(vertices[:,0])),
-#                    int(local_peak[1] + np.min(vertices[:,1])))
+# sns.set_theme(style="darkgrid")
+# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-#     bead_patch = extract_fixed_window(img, global_peak, window_size=bead_window)
-#     bead_patch = normalize(bead_patch)
-#     bead_patch -= np.median(bead_patch)
-#     bead_patch[bead_patch < 0] = 0
+# # --- Left: axial profiles colored by y position ---
+# for entry, y_pos in zip(profiles_z, y_positions):
+#     color = cmap(norm(y_pos))
+#     ax1.plot(entry["profile"], color=color, alpha=0.7)
 
-#     beads.append({
-#         "patch": bead_patch,
-#         "bead_id": i,
-#         "z": z,
-#         "peak_yx": global_peak,
-#         "local_peak_yx": local_peak
-#     })
+# sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+# sm.set_array([])
+# plt.colorbar(sm, ax=ax1, label="Y position (px)")
 
-# Obtaining z values
-# for each bead patch
-    # for each z plane
-        #extract intensity value from local peak 
+# ax1.plot(avg_profile_z, label="Average", color='black', linewidth=2)
+# ax1.set_title("Axial PSF Profiles (colored by Y position)")
+# ax1.set_xlabel("Z slice")
+# ax1.set_ylabel("Intensity")
+# ax1.legend()
 
+# # --- Right: bead positions in the FOV ---
+# img_h = stack.shape[1]
+# img_w = stack.shape[2]
 
-# # -----------------------------
-# # ALIGN BEADS
-# # -----------------------------
-# if len(beads) > 1:
-#     reference_bead = beads[0]
-#     beads = [align_bead_crosscorr(b, reference_bead) for b in beads]
+# ax2.set_xlim(0, img_w)
+# ax2.set_ylim(img_h, 0)  # flip y to match image coordinates
+# ax2.set_facecolor("black")
+# ax2.set_aspect("equal")
 
-# # -----------------------------
-# # PROFILES
-# # -----------------------------
-# for bead in beads:
-#     cy, cx = bead_window // 2, bead_window // 2
-#     profiles_x.append(bead[cy, :])
-#     profiles_y.append(bead[:, cx])
+# for entry, x_pos, y_pos in zip(profiles_z, x_positions, y_positions):
+#     color = cmap(norm(y_pos))
+#     ax2.scatter(x_pos, y_pos, color=color, s=80, zorder=5)
+#     ax2.text(x_pos + 5, y_pos, str(entry["bead_id"]), color='white', fontsize=8)
 
-# # -----------------------------
-# # AVERAGE PSF
-# # -----------------------------
-# avg_psf = np.mean(beads, axis=0)
-# avg_profile_x = np.mean(profiles_x, axis=0)
-# avg_profile_y = np.mean(profiles_y, axis=0)
+# plt.colorbar(sm, ax=ax2, label="Y position (px)")
+# ax2.set_title("Bead positions in FOV")
+# ax2.set_xlabel("X (px)")
+# ax2.set_ylabel("Y (px)")
 
-# # -----------------------------
-# # SAVE OUTPUT
-# # -----------------------------
-# np.save(f"{output_dir}/avg_psf.npy", avg_psf)
-# np.save(f"{output_dir}/avg_profile_x.npy", avg_profile_x)
-# np.save(f"{output_dir}/avg_profile_y.npy", avg_profile_y)
-# pd.DataFrame(avg_psf).to_csv(f"{output_dir}/avg_psf.csv", index=False)
-
-# # -----------------------------
-# # VISUALIZATION
-# # -----------------------------
-# plt.figure(figsize=(5,5))
-# for b in beads[:20]:
-#     plt.imshow(b, alpha=0.2, cmap='hot')
-# plt.title("Overlay of aligned beads")
+# plt.tight_layout()
+# # plt.savefig(f"{output_dir}/avg_axial_psf_profiles.png", dpi=300, bbox_inches="tight")
 # plt.show()
 
-# plt.figure()
-# plt.imshow(avg_psf, cmap='hot')
-# plt.title("Average PSF")
-# plt.colorbar()
-# plt.savefig(f"{output_dir}/avg_psf.png")
+# sns.set_theme(style="darkgrid")
 
-# plt.figure()
-# plt.plot(avg_profile_x, label="X")
-# plt.plot(avg_profile_y, label="Y")
-# plt.legend()
-# plt.title("PSF Profiles")
-# plt.savefig(f"{output_dir}/avg_profiles.png")
+# fig, ax = plt.subplots()
 
-# print(f"Processed {len(beads)} beads")
+# # individual bead profiles
+# for entry in profiles_z:
+#     ax.plot(entry["profile"], label=f"Bead {entry['bead_id']}", alpha=0.6)
+
+# # average profile on top
+# ax.plot(avg_profile_z, label="Average Z Profile", color='black', linewidth=2)
+
+# ax.set_title("Axial PSF Profiles")
+# ax.set_xlabel("Z slice")
+# ax.set_ylabel("Intensity")
+# ax.legend()
+# plt.savefig(f"{output_dir}/avg_axial_psf_profiles.png", dpi=300)
+# plt.show()
 

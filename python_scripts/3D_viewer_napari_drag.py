@@ -2,6 +2,7 @@ import napari
 import numpy as np
 from tifffile import TiffFile
 
+
 viewer = napari.Viewer()
 napari.run()
 
