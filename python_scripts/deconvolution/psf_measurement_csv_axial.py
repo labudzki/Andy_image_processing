@@ -185,7 +185,8 @@ y_positions = np.array([p[0] for p in peak_positions])  # y (row)
 norm_x = plt.Normalize(vmin=x_positions.min(), vmax=x_positions.max()) #normalizes the x and y positions to match them to a colormap 
 norm_y = plt.Normalize(vmin=y_positions.min(), vmax=y_positions.max())
 cmap_x = plt.cm.viridis
-cmap_y = plt.cm.plasma
+ #plt.cm.plasma
+cmap_y = cmap_x.reversed()
 z_axis = np.arange(stack.shape[0]) * z_interval_um #to scale the z axis to real units (um) instead of slice index
 
 
