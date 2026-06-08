@@ -1,4 +1,4 @@
-# %% Initizialization
+
 """
 Volume plane rendering
 ======================
@@ -17,12 +17,9 @@ import xml.etree.ElementTree as ET
 fnum = 16 #to define run number
 
 path_movie = Path(
-# rf"c:\Users\labudzki\OneDrive - AMOLF\Desktop\Data\HSE2508A264\Run{fnum}\Run{fnum}_MMStack_Pos0.ome.tif"
-# rf"C:\Users\labudzki\OneDrive - AMOLF\Documents\Repositories\confocal_processing\lipid movies\SAL2506A042\Mov21_MMStack_Pos0.ome.tif" #magnification 50X
-# rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251125\CFL2510A002\Run{fnum}\Run{fnum}_MMStack_Pos0.ome.tif"
-# rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run17\Run17_MMStack_Pos0.ome.tif"
-rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251128\CFL2510A005\Run19\Run19_MMStack_Pos0.ome.tif"
-# rf"C:\Users\labudzki\AMOLF-SHIMIZU Dropbox\DATA\Ach_data\5. Lipids and Organelles imaging\RawData\251125\CFL2510A002\Run10\Run10_MMStack_Pos0.ome.tif"
+# rf'/Users/andrealabudzki/Library/CloudStorage/OneDrive-AMOLF/Data/Multi photon tests/260512 Bruker/BrukerMultiphoton/Tom Demo 3/25x - Nile Red/No Water/ZSeries-11262025-1205-004/ZSeries-11262025-1205-004_Cycle00001_Ch1_000001.ome.tif'
+# '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260216/CFL2601A042/Run01/Run01_MMStack_Pos0.ome.tif'
+'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
 )
 
 # Load as a NumPy array (ensure it’s contiguous)
@@ -30,27 +27,42 @@ with TiffFile(path_movie) as tif:
     stack = tif.asarray()
     ome_metadata = tif.ome_metadata
 
-#Obtain correct scaling for x, y, z
+# path_movie2 = Path(
+# '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260430/CFL2603A076/Run03/Run03_MMStack_Pos0.ome.tif'
+# )
+
+# # Load as a NumPy array (ensure it’s contiguous)
+# with TiffFile(path_movie2) as tif:
+#     stack2 = tif.asarray()
+#     ome_metadata2 = tif.ome_metadata
+
+# ----------------------
+# WIP: Obtain correct scaling for x, y, z
+# ----------------------
 
 # Obtaining z intervals from OME-XML metadata using wildcard search (ignoring namespaces)
 root = ET.fromstring(ome_metadata)
 planes = root.findall(".//{*}Plane")
 
-z_positions = []
-for p in planes:
-    z = p.get("ZPositionUm") or p.get("PositionZ")
-    if z is not None:
-        z_positions.append(float(z))
+# z_positions = []
 
-# print(z_positions)
-# z_interval = z_positions[1] - z_positions[0]
-z_interval = 1 #um
+z = root.get("z-step_um") # or p.get("PositionZ")
+    # if z is not None:
+    #     z_positions.append(float(z))
+
+print(z)
+
+# ----------------------
+
+z_interval = 1  #um
 # z_interval = 0.5 #um
 
 pixel_size = 6.5 #um
 magnification = 60  # adjust based on data
 pixel_size_true = pixel_size / magnification  # um
+# pixel_size_true = 512/352.77
 print(f"Pixel size (true): {pixel_size_true} um")   
+
 
 my_scale = (z_interval, pixel_size_true, pixel_size_true)
 
@@ -73,6 +85,21 @@ volume_layer = viewer.add_image(
     # contrast_limits=[158, 337],
     scale=my_scale
 )
+z_interval2 = 1 #um
+my_scale2 = (z_interval2, pixel_size_true, pixel_size_true)
+
+# volume_layer2 = viewer.add_image(
+#     stack2, 
+#     rendering='mip', 
+#     name='volume2', 
+#     blending= 'translucent', #'opaque', # 'additive', 
+#     opacity=1,
+#     colormap = 'inferno', 
+#     # interpolation = 'spline36'
+#     # contrast_limits=[144, 258],
+#     # contrast_limits=[158, 337],
+#     scale=my_scale2
+# )
 
 # add the same volume and render as plane
 # plane should be in 'additive' blending mode or depth looks all wrong

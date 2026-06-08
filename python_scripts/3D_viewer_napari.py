@@ -2,7 +2,6 @@ import napari
 import numpy as np
 from tifffile import TiffFile
 from pathlib import Path
-from LOCOMYCO_ImgAnalysis import tifreading as u_tif
 
 fnum = 3
 

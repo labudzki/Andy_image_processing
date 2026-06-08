@@ -1,0 +1,54 @@
+# =====================================
+#   Microscopy / Imaging Data
+# =====================================
+*.tif
+*.tiff
+*.ome.tif
+*.ome.tiff
+*.czi
+*.nd2
+*.lif
+*.raw
+*.avi
+*.mp4
+*.mov
+*.mkv
+*.h5
+*.hdf5
+
+# Large numpy/scientific files
+*.npy
+*.npz
+*.mat
+*.csv
+*.xlsx
+*.zip
+*.tar
+*.tar.gz
+
+# =====================================
+#   Python Stuff
+# =====================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# =====================================
+# OS / Editor files
+# =====================================
+.DS_Store
+Thumbs.db
+
+# VS Code workspace config
+.vscode/

@@ -1,0 +1,47 @@
+Options for running
+
+1. activate environment, then run py files:
+    - navigate to confocal_processing directory
+    - activate environemt: poetry shell
+    - run file: python Scripts\your_script.py
+
+    What this does
+    - enter a new shell with the virtual environment fully activated. every command
+      you run in this shell will use the virtual environment's python and packages.
+    - good for running multiple commands in the environment
+
+2. run command without entering shell:
+    - navigate to confocal_processing directory
+    - run file right away: poetry run python your_script.py
+
+    What this does
+    - you don't enter a new shell. Each command you run with "poetry run" will temporarily activate the environment just for that command.
+    - good for running single commands without needing to enter a new shell
+
+poetry
+poetry add ___ : adds a package to the environment and updates pyproject.toml
+poetry lock : generates or updates the poetry.lock file based on the pyproject.toml
+poetry install : installs the dependencies from the poetry.lock file into the virtual environment
+poetry run python your_script.py : runs a python script within the virtual environment without activating the shell
+
+create a new environment
+ poetry run python -m ipykernel install --user --name locomyco_env --display-name "LOCOMYCO_ImgAnalysis (Poetry)"
+
+
+git commands:
+  - git status (check status of changes)
+  - git add . (add all changes)
+  - git add path/to/file.py (add specific file)
+  - git commit -m "message" (commit changes with message)
+  - git push origin main (push changes to remote repository on main branch)
+  - git commit --amend (amend last commit)
+  - git reset HEAD~1 (undo last commit, keep changes staged)
+  - git checkout -- path/to/file.py (discard changes in working directory for specific file)
+  - git pull origin main (pull latest changes from remote main branch)
+  - git pull 
+
+  Typical workflow:
+    - git pull origin main
+    - git add .
+    - git commit -m "descriptive message"
+    - git push origin main

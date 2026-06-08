@@ -1,4 +1,8 @@
 
+# %% 
+
+
+#%%
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,7 +13,9 @@ import os
 from datetime import datetime
 from tifffile import TiffFile
 import seaborn as sns
+from scipy.optimize import curve_fit   
 
+#%%
 # -----------------------------
 # HELPER FUNCTIONS
 # -----------------------------
@@ -332,20 +338,38 @@ if save_bool:
 plt.show()
 
 
+# sse = np.sum((avg_profile_z_normalized - avg_profile_z_after_norm) ** 2)
+# print(f"Sum of squared errors between avg_profile_z_normalized and avg_profile_z_after_norm: {sse:.6f}")
+
+# calculate root mean squared error (RMSE) between avg_profile_z_normalized and avg_profile_z_after_norm
+rmse = np.sqrt(sse / len(avg_profile_z_normalized))
+print(f"Root mean squared error between avg_profile_z_normalized and avg_profile_z_after_norm: {rmse:.6f}")
+
 # Plot avg_profile_z_normalized and avg_profile_z_after_norm together to check they are the same
 plt.figure()
 plt.plot(z_axis, avg_profile_z_normalized, color='red', linewidth=2, label="Average Z Profile (normalized)")
 plt.plot(z_axis, avg_profile_z_after_norm, color='blue', linewidth=2, label="Average of normalized profiles")
 plt.legend()
-plt.title("Check average profile after normalization")
-plt.xlabel("Z slice")
+plt.title(f"Check average profile after normalization; rmse = {rmse:.6f}")
+# plt.title(f"Check average profile after normalization; sse = {sse:.6f}, rmse = {rmse:.6f}")
+plt.xlabel("Z (µm))")
 plt.ylabel("Intensity")
 if save_bool:
     plt.savefig(f"{output_dir}/avg_z_profiles_normalized_and_not_normalized.png",
                 dpi=300, bbox_inches="tight")
 plt.show()
 
+#%%
+# Compare the average profile before and after normalization to see how normalization affects the average profile shape. 
+# sum of squared errors between avg_profile_z_normalized and avg_profile_z_after_norm
+
+
+
+#Fit a gaussian to the average axial profile and print the FWHM in z. This is a common way to quantify the axial resolution of the microscope based on the PSF measurement.
 
 
 
 
+
+
+# %%
