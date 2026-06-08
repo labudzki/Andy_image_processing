@@ -66,8 +66,8 @@ psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/
 z_int_psf = 0.2 #um
 
 
-# need to downsample the psf to matcht the z interval of the data
-psf_resampled = zoom(psf, z_int_data / z_int_psf)
+# need to downsample the psf to match the z interval of the data
+psf_resampled = zoom(psf, z_int_psf / z_int_data)
 
 # Normalize to 1
 psf_resampled_norm = psf_resampled / psf_resampled.sum()
@@ -99,68 +99,126 @@ for a in ax:
 z_plane_to_show = 10
 
 ax[0].imshow(astro[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
-ax[0].set_title('Original Data')
+ax[0].set_title('Original Data (xy plane)')
 
 ax[1].imshow(deconvolved_10[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
-ax[1].set_title(rf'RL – {n_iter} iterations')
+ax[1].set_title(rf'RL – {n_iter} iterations (xy plane)')
 
 ax[2].imshow(deconvolved_20[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
-ax[2].set_title(rf'RL – {n_iter + 10} iterations')
+ax[2].set_title(rf'RL – {n_iter + 10} iterations (xy plane)')
 
 # ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
 # ax[3].set_title(rf'RL – {n_iter + 20} iterations')
 
-# fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
+fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
 plt.show()
 
+#%%
 # -------------
 # plotting - planes
 # -------------
 
+y_plane_to_show = astro.shape[1] // 2  # center Y
 
+fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
+plt.gray()
+
+for a in ax:
+    a.axis('off')
+
+
+ax[0].imshow(astro[:, y_plane_to_show, :], vmin=astro.min(), vmax=astro.max())
+ax[0].set_title('Original Data (xz plane)')
+
+ax[1].imshow(deconvolved_10[:, y_plane_to_show, :], vmin=astro.min(), vmax=astro.max())
+ax[1].set_title(rf'RL – {n_iter} iterations (xz plane)')
+
+ax[2].imshow(deconvolved_20[:, y_plane_to_show, :], vmin=astro.min(), vmax=astro.max())
+ax[2].set_title(rf'RL – {n_iter + 10} iterations (xz plane)')
+
+# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+# ax[3].set_title(rf'RL – {n_iter + 20} iterations')
+
+fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
+plt.show()
+
+#%%
+x_plane_to_show = astro.shape[2] // 2  # center Y
+
+fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
+plt.gray()
+
+for a in ax:
+    a.axis('off')
+
+
+ax[0].imshow(astro[:, :, x_plane_to_show], vmin=astro.min(), vmax=astro.max())
+ax[0].set_title('Original Data (yz plane)')
+
+ax[1].imshow(deconvolved_10[:, :, x_plane_to_show], vmin=astro.min(), vmax=astro.max())
+ax[1].set_title(rf'RL – {n_iter} iterations (yz plane)')
+
+ax[2].imshow(deconvolved_20[:, :, x_plane_to_show], vmin=astro.min(), vmax=astro.max())
+ax[2].set_title(rf'RL – {n_iter + 10} iterations (yz plane)')
+
+# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+# ax[3].set_title(rf'RL – {n_iter + 20} iterations')
+
+fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
+plt.show()
+
+
+#%%
 # -------------
 # plotting - 3D
 # -------------
 
-# pixel_size = 6.5 #um
-# magnification = 60  # adjust based on data
-# pixel_size_true = pixel_size / magnification  # um
+pixel_size = 6.5 #um
+magnification = 60  # adjust based on data
+pixel_size_true = pixel_size / magnification  # um
 # # pixel_size_true = 512/352.77
 # print(f"Pixel size (true): {pixel_size_true} um")   
 
+my_scale = (z_int_data, pixel_size_true, pixel_size_true)
+viewer = napari.Viewer(ndisplay=3)
 
-# my_scale = (z_int_data, pixel_size_true, pixel_size_true)
+volume_layer = viewer.add_image(
+    astro, 
+    rendering='mip', 
+    name='volume', 
+    blending= 'translucent', #'opaque', # 'additive', 
+    opacity=1,
+    colormap = 'inferno', 
+    scale=my_scale
+)
 
+volume_layer2 = viewer.add_image(
+    deconvolved_10, 
+    rendering='mip', 
+    name='deconvolved volume', 
+    blending= 'translucent', #'opaque', # 'additive', 
+    opacity=1,
+    colormap = 'inferno', 
+    scale=my_scale
+)
 
-# viewer = napari.Viewer(ndisplay=3)
+volume_layer3 = viewer.add_image(
+    astro - deconvolved_10, 
+    rendering='mip', 
+    name='difference', 
+    blending= 'translucent', #'opaque', # 'additive', 
+    opacity=1,
+    colormap = 'inferno', 
+    scale=my_scale
+)
 
-# volume_layer = viewer.add_image(
-#     astro[10], 
-#     rendering='mip', 
-#     name='volume', 
-#     blending= 'translucent', #'opaque', # 'additive', 
-#     opacity=1,
-#     colormap = 'inferno', 
-#     scale=my_scale
-# )
+viewer.axes.visible = True
+viewer.camera.angles = (45, 45, 45)
+viewer.camera.zoom = 1
 
-# volume_layer2 = viewer.add_image(
-#     deconvolved_10[10], 
-#     rendering='mip', 
-#     name='deconvolved volume', 
-#     blending= 'translucent', #'opaque', # 'additive', 
-#     opacity=1,
-#     colormap = 'inferno', 
-#     scale=my_scale
-# )
-
-# viewer.axes.visible = True
-# viewer.camera.angles = (45, 45, 45)
-# viewer.camera.zoom = 1
-
-#  # Run napari
-# if __name__ == '__main__':
-#     napari.run()
+ # Run napari
+if __name__ == '__main__':
+    napari.run()
 
 
 # # Save deconvolved images with timestamp as tifs and pngs

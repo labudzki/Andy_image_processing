@@ -6,6 +6,7 @@ from skimage import registration
 import os
 from datetime import datetime
 from tifffile import TiffFile
+from mpl_toolkits.mplot3d import Axes3D
 
 # -----------------------------
 # USER INPUT
@@ -19,6 +20,11 @@ z_interval_um = 0.2   # physical z step size in microns, used for correct aspect
 xy_window = 21        # lateral crop size in pixels (odd number so there is a well-defined center pixel)
 z_window = 31         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
 save_bool = False      # set to False to skip saving outputs
+
+magnfication = 60 
+pixel_size_um = 6.5
+pixel_size_xy_um = pixel_size_um / magnfication
+print (pixel_size_xy_um)
 
 # -----------------------------
 # LOAD DATA
@@ -82,6 +88,45 @@ def align_3d_crosscorr(bead, reference):
     # apply the estimated shift to bring bead into alignment with reference
     return shift(bead, shift=shift_est, mode='nearest', order=1)
 
+def calculate_fwhm(profile):
+    """
+    Calculate FWHM of a 1D profile using linear interpolation.
+    Returns width in pixel units.
+    """
+    profile = np.asarray(profile)
+
+    peak_idx = np.argmax(profile)
+    peak_val = profile[peak_idx]
+    half_max = peak_val / 2
+
+    # left crossing
+    left_indices = np.where(profile[:peak_idx] < half_max)[0]
+    if len(left_indices) == 0:
+        return np.nan
+
+    left_idx = left_indices[-1]
+
+    left_cross = np.interp(
+        half_max,
+        [profile[left_idx], profile[left_idx + 1]],
+        [left_idx, left_idx + 1]
+    )
+
+    # right crossing
+    right_indices = np.where(profile[peak_idx:] < half_max)[0]
+    if len(right_indices) == 0:
+        return np.nan
+
+    right_idx = peak_idx + right_indices[0]
+
+    right_cross = np.interp(
+        half_max,
+        [profile[right_idx - 1], profile[right_idx]],
+        [right_idx - 1, right_idx]
+    )
+
+    return right_cross - left_cross
+
 # -----------------------------
 # MAIN FUNCTIONS
 # -----------------------------
@@ -129,7 +174,7 @@ def find_bead_peaks(stack, df):
 def extract_subvolumes(stack, reference_z, z_window, xy_window):
     """
     For each bead in reference_z, crop a 3D subvolume centered on the
-    peak location, background subtract, clip, and normalize.
+    peak location, subtract background, clip, and normalize.
     Returns a list of dicts with bead_id and volume.
     """
     subvolumes = []
@@ -177,6 +222,7 @@ reference_z = find_bead_peaks(stack, df)       # step 1: find 3D peak location f
 subvolumes = extract_subvolumes(stack, reference_z, z_window, xy_window)  # step 2: crop 3D subvolumes
 subvolumes = align_subvolumes(subvolumes)       # step 3: align subvolumes before averaging
 
+
 # -----------------------------
 # AVERAGE AND NORMALIZE
 # -----------------------------
@@ -189,16 +235,66 @@ print("3D PSF shape:", psf_3d.shape)
 print("PSF peak location:", np.unravel_index(np.argmax(psf_3d), psf_3d.shape))
 print("Expected center:  ", (z_window//2, xy_window//2, xy_window//2))
 
+
+# -----------------------------
+# FIND AND EXTRACT FWHMs
+# -----------------------------
+
+# find PSF peak
+peak_z, peak_y, peak_x = np.unravel_index(
+    np.argmax(psf_3d),
+    psf_3d.shape
+)
+
+# extract central profiles
+profile_x = psf_3d[peak_z, peak_y, :]
+profile_y = psf_3d[peak_z, :, peak_x]
+profile_z = psf_3d[:, peak_y, peak_x]
+
+# calculate FWHM
+fwhm_x_px = calculate_fwhm(profile_x)
+fwhm_y_px = calculate_fwhm(profile_y)
+fwhm_z_px = calculate_fwhm(profile_z)
+
+fwhm_x_um = fwhm_x_px * pixel_size_xy_um
+fwhm_y_um = fwhm_y_px * pixel_size_xy_um
+fwhm_z_um = fwhm_z_px * z_interval_um
+
+print("\nFWHM results")
+print(f"X: {fwhm_x_px:.2f} px ({fwhm_x_um:.3f} µm)")
+print(f"Y: {fwhm_y_px:.2f} px ({fwhm_y_um:.3f} µm)")
+print(f"Z: {fwhm_z_px:.2f} px ({fwhm_z_um:.3f} µm)")
+
 # -----------------------------
 # SAVE
 # -----------------------------
 if save_bool:
+    # Save 3D psf as npy file
     np.save(f"{output_dir}/psf_3d.npy", psf_3d)
     print(f"Saved to {output_dir}/psf_3d.npy")
 
-# -----------------------------
-# VISUALIZATION
-# -----------------------------
+    # Save FWHM x, y, and z results in a txt file
+    with open(f"{output_dir}/psf_fwhm.txt", "w") as f:
+        f.write("PSF FWHM measurements\n")
+        f.write("=====================\n\n")
+
+        f.write(f"Peak location (z,y,x): "
+                f"({peak_z}, {peak_y}, {peak_x})\n\n")
+
+        f.write(f"FWHM X: {fwhm_x_px:.3f} px "
+                f"({fwhm_x_um:.4f} µm)\n")
+
+        f.write(f"FWHM Y: {fwhm_y_px:.3f} px "
+                f"({fwhm_y_um:.4f} µm)\n")
+
+        f.write(f"FWHM Z: {fwhm_z_px:.3f} px "
+                f"({fwhm_z_um:.4f} µm)\n")
+
+    print(f"Saved FWHM results to {output_dir}/psf_fwhm.txt")
+
+# # -----------------------------
+# # 2D VISUALIZATION
+# # -----------------------------
 # show three orthogonal slices through the center of the PSF
 # XZ and YZ use aspect=z_interval_um to correct for anisotropic voxel size
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
@@ -222,4 +318,105 @@ plt.suptitle("Average 3D PSF")
 plt.tight_layout()
 if save_bool:
     plt.savefig(f"{output_dir}/psf_3d_projections.png", dpi=300)
+plt.show()
+
+# -----------------------------
+# CENTRAL PROFILES PLOT
+# -----------------------------
+
+x = np.arange(len(profile_x)) * pixel_size_xy_um
+y = np.arange(len(profile_y)) * pixel_size_xy_um
+z = np.arange(len(profile_z)) * z_interval_um
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+axes[0].plot(x, profile_x, lw=2)
+axes[0].set_title(rf"X profile (center) FWHM = {fwhm_x_um:.3f} µm")
+axes[0].set_xlabel("X (µm)")
+axes[0].set_ylabel("Intensity")
+
+axes[1].plot(y, profile_y, lw=2)
+axes[1].set_title(rf"Y profile (center) FWHM = {fwhm_y_um:.3f} µm")
+axes[1].set_xlabel("Y (µm)")
+axes[1].set_ylabel("Intensity")
+
+axes[2].plot(z, profile_z, lw=2)
+axes[2].set_title(rf"Z profile (center) FWHM = {fwhm_z_um:.3f} µm")
+axes[2].set_xlabel("Z (µm)")
+axes[2].set_ylabel("Intensity")
+
+plt.suptitle("Central PSF Profiles")
+plt.tight_layout()
+
+if save_bool:
+    plt.savefig(f"{output_dir}/psf_central_profiles.png", dpi=300)
+
+plt.show()
+
+# -----------------------------
+# 3D VISUALIZATION
+# -----------------------------
+
+# use a threshold to only show voxels above a fraction of the peak
+# adjust this value to show more or less of the PSF
+# threshold = 0.2
+
+# # get coordinates and intensities of voxels above threshold
+# z_coords, y_coords, x_coords = np.where(psf_3d > threshold * psf_3d.max())
+# intensities = psf_3d[z_coords, y_coords, x_coords]
+
+# # convert z coordinates to microns for correct aspect ratio
+# z_coords_um = z_coords * z_interval_um
+
+# fig = plt.figure(figsize=(8, 8))
+# ax = fig.add_subplot(111, projection='3d')
+
+# print("here")
+
+# sc = ax.scatter(
+#     x_coords, y_coords, z_coords_um,
+#     c=intensities,
+#     cmap='hot',
+#     alpha=0.3,          # transparency so internal structure is visible
+#     s=10,               # marker size
+#     vmin=threshold * psf_3d.max(),
+#     vmax=psf_3d.max()
+# )
+
+# plt.colorbar(sc, ax=ax, label="Intensity", shrink=0.5)
+# ax.set_xlabel("X (px)")
+# ax.set_ylabel("Y (px)")
+# ax.set_zlabel("Z (µm)")
+# ax.set_title("3D PSF")
+
+# plt.tight_layout()
+# if save_bool:
+#     plt.savefig(f"{output_dir}/psf_3d_scatter.png", dpi=300)
+# plt.show()
+
+#Surface plot of MIP along z-axis
+Z = np.max(psf_3d, axis=0)
+
+Y, X = np.meshgrid(
+    np.arange(Z.shape[0]),
+    np.arange(Z.shape[1]),
+    indexing="ij"
+)
+
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111, projection='3d')
+
+surf = ax.plot_surface(
+    X, Y, Z,
+    cmap='hot',
+    linewidth=0
+)
+
+fig.colorbar(surf, ax=ax, label="Max Intensity")
+
+ax.set_xlabel("X (px)")
+ax.set_ylabel("Y (px)")
+ax.set_zlabel("Intensity")
+ax.set_title("Maximum Intensity Projection")
+
 plt.show()
