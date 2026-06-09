@@ -3,19 +3,7 @@
 =====================
 Image Deconvolution
 =====================
-In this example, we deconvolve an image using Richardson-Lucy
-deconvolution algorithm ([1]_, [2]_).
 
-The algorithm is based on a PSF (Point Spread Function),
-where PSF is described as the impulse response of the
-optical system. The blurred image is sharpened through a number of
-iterations, which needs to be hand-tuned.
-
-.. [1] William Hadley Richardson, "Bayesian-Based Iterative
-       Method of Image Restoration",
-       J. Opt. Soc. Am. A 27, 1593-1607 (1972), :DOI:`10.1364/JOSA.62.000055`
-
-.. [2] https://en.wikipedia.org/wiki/Richardson%E2%80%93Lucy_deconvolution
 """
 #%%
 import numpy as np
@@ -45,7 +33,7 @@ print(stack.shape)
 #%%
 z_int_data = 1 #um
 # Select a specific time point from the 3D stack 
-slice_index_t = 35 # first time point
+slice_index_t = 35 
 stack_single_timeframe = stack[slice_index_t, :, :, :]
 
 print(stack_single_timeframe.shape)
@@ -62,7 +50,7 @@ astro = stack_single_timeframe / stack_single_timeframe.max()
 # ---------------------
 
 #60x WI axial PSF
-psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/axial_psf.npy')
+psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_axial.npy')
 z_int_psf = 0.2 #um
 
 
