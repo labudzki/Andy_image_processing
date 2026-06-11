@@ -62,7 +62,7 @@ astro = stack_single_timeframe / stack_single_timeframe.max()
 # ---------------------
 
 #60x WI axial PSF
-psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/axial_psf.npy')
+psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d.npy')
 z_int_psf = 0.2 #um
 
 

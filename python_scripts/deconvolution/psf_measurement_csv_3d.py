@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import shift
+from scipy.optimize import curve_fit
 from skimage import registration
 import os
 from datetime import datetime
@@ -17,9 +18,9 @@ output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/
 os.makedirs(output_dir, exist_ok=True)
 
 z_interval_um = 0.2   # physical z step size in microns, used for correct aspect ratio in plots
-xy_window = 21        # lateral crop size in pixels (odd number so there is a well-defined center pixel)
-z_window = 31         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
-save_bool = False      # set to False to skip saving outputs
+xy_window = 31        # lateral crop size in pixels (odd number so there is a well-defined center pixel)
+z_window = 41         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
+save_bool = True      # set to False to skip saving outputs
 
 magnfication = 60 
 pixel_size_um = 6.5
@@ -80,6 +81,7 @@ def extract_3d_window(stack, center_zyx, z_window, xy_window):
     return patch
 
 def align_3d_crosscorr(bead, reference):
+
     # estimate the 3D shift between bead and reference using phase cross-correlation
     # upsample_factor=10 gives subpixel precision to 1/10th of a pixel
     shift_est, _, _ = registration.phase_cross_correlation(
@@ -88,44 +90,9 @@ def align_3d_crosscorr(bead, reference):
     # apply the estimated shift to bring bead into alignment with reference
     return shift(bead, shift=shift_est, mode='nearest', order=1)
 
-def calculate_fwhm(profile):
-    """
-    Calculate FWHM of a 1D profile using linear interpolation.
-    Returns width in pixel units.
-    """
-    profile = np.asarray(profile)
+def gaussian(x, A, mu, sigma):
+    return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
 
-    peak_idx = np.argmax(profile)
-    peak_val = profile[peak_idx]
-    half_max = peak_val / 2
-
-    # left crossing
-    left_indices = np.where(profile[:peak_idx] < half_max)[0]
-    if len(left_indices) == 0:
-        return np.nan
-
-    left_idx = left_indices[-1]
-
-    left_cross = np.interp(
-        half_max,
-        [profile[left_idx], profile[left_idx + 1]],
-        [left_idx, left_idx + 1]
-    )
-
-    # right crossing
-    right_indices = np.where(profile[peak_idx:] < half_max)[0]
-    if len(right_indices) == 0:
-        return np.nan
-
-    right_idx = peak_idx + right_indices[0]
-
-    right_cross = np.interp(
-        half_max,
-        [profile[right_idx - 1], profile[right_idx]],
-        [right_idx - 1, right_idx]
-    )
-
-    return right_cross - left_cross
 
 # -----------------------------
 # MAIN FUNCTIONS
@@ -251,19 +218,38 @@ profile_x = psf_3d[peak_z, peak_y, :]
 profile_y = psf_3d[peak_z, :, peak_x]
 profile_z = psf_3d[:, peak_y, peak_x]
 
-# calculate FWHM
-fwhm_x_px = calculate_fwhm(profile_x)
-fwhm_y_px = calculate_fwhm(profile_y)
-fwhm_z_px = calculate_fwhm(profile_z)
+# fit gaussian to each profile to find FWHM in pixels, then convert to microns
+x = np.arange(xy_window) * pixel_size_xy_um
+x -= x[xy_window // 2]  # center at 0
 
-fwhm_x_um = fwhm_x_px * pixel_size_xy_um
-fwhm_y_um = fwhm_y_px * pixel_size_xy_um
-fwhm_z_um = fwhm_z_px * z_interval_um
+y=x
 
-print("\nFWHM results")
-print(f"X: {fwhm_x_px:.2f} px ({fwhm_x_um:.3f} µm)")
-print(f"Y: {fwhm_y_px:.2f} px ({fwhm_y_um:.3f} µm)")
-print(f"Z: {fwhm_z_px:.2f} px ({fwhm_z_um:.3f} µm)")
+z = np.arange(z_window) * z_interval_um
+z -= z[z_window // 2]
+
+parameters_x, _ = curve_fit(gaussian, x, profile_x)
+fit_x_A, fit_x_mu, fit_x_sigma = parameters_x
+fit_x = gaussian(x, fit_x_A, fit_x_mu, fit_x_sigma)
+
+fwhm_x_um = 2 * np.sqrt(2 * np.log(2)) * abs(fit_x_sigma)
+
+parameters_y, _ = curve_fit(gaussian, y, profile_y)
+fit_y_A, fit_y_mu, fit_y_sigma = parameters_y
+fit_y = gaussian(y, fit_y_A, fit_y_mu, fit_y_sigma)
+
+# Calculate FWHM from sigma (fit_x_sigma)
+fwhm_y_um = 2 * np.sqrt(2 * np.log(2)) * abs(fit_y_sigma)
+
+parameters_z, _ = curve_fit(gaussian, z, profile_z)
+fit_z_A, fit_z_mu, fit_z_sigma = parameters_z
+fit_z = gaussian(z, fit_z_A, fit_z_mu, fit_z_sigma)
+
+# Calculate FWHM from sigma (fit_x_sigma)
+fwhm_z_um = 2 * np.sqrt(2 * np.log(2)) * abs(fit_z_sigma)
+
+fwhm_x_px = fwhm_x_um / pixel_size_xy_um
+fwhm_y_px = fwhm_y_um / pixel_size_xy_um
+fwhm_z_px = fwhm_z_um / z_interval_um
 
 # -----------------------------
 # SAVE
@@ -273,24 +259,12 @@ if save_bool:
     np.save(f"{output_dir}/psf_3d.npy", psf_3d)
     print(f"Saved to {output_dir}/psf_3d.npy")
 
-    # Save FWHM x, y, and z results in a txt file
-    with open(f"{output_dir}/psf_fwhm.txt", "w") as f:
-        f.write("PSF FWHM measurements\n")
-        f.write("=====================\n\n")
-
-        f.write(f"Peak location (z,y,x): "
-                f"({peak_z}, {peak_y}, {peak_x})\n\n")
-
-        f.write(f"FWHM X: {fwhm_x_px:.3f} px "
-                f"({fwhm_x_um:.4f} µm)\n")
-
-        f.write(f"FWHM Y: {fwhm_y_px:.3f} px "
-                f"({fwhm_y_um:.4f} µm)\n")
-
-        f.write(f"FWHM Z: {fwhm_z_px:.3f} px "
-                f"({fwhm_z_um:.4f} µm)\n")
-
-    print(f"Saved FWHM results to {output_dir}/psf_fwhm.txt")
+    pd.DataFrame([{
+            "peak_z": peak_z, "peak_y": peak_y, "peak_x": peak_x,
+            "fwhm_x_um": fwhm_x_um, "fwhm_x_px": fwhm_x_px,
+            "fwhm_y_um": fwhm_y_um, "fwhm_y_px": fwhm_y_px,
+            "fwhm_z_um": fwhm_z_um, "fwhm_z_px": fwhm_z_px,
+        }]).to_csv(f"{output_dir}/psf_fwhm.csv", index=False) 
 
 # # -----------------------------
 # # 2D VISUALIZATION
@@ -323,10 +297,6 @@ plt.show()
 # -----------------------------
 # CENTRAL PROFILES PLOT
 # -----------------------------
-
-x = np.arange(len(profile_x)) * pixel_size_xy_um
-y = np.arange(len(profile_y)) * pixel_size_xy_um
-z = np.arange(len(profile_z)) * z_interval_um
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 

@@ -1,12 +1,10 @@
 
-# %% 
-
-
 #%%
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import shift
+from scipy.optimize import curve_fit
 from skimage.io import imread
 from skimage import registration
 import os
@@ -32,18 +30,30 @@ def normalize(im):
         im = im / np.max(im)
     return im
 
+def gaussian(x, A, mu, sigma):
+    return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+
 # # -----------------------------
 # # USER INPUT
 # # -----------------------------
+run_nr = '09'
+save_bool = True #True if you want to save PSF info and plot
 
 # Upload image of beads and CSV coords
-image_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/Run09_MMStack_Pos0.ome.tif'
-csv_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/PSF_crops_coords.csv'
-output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/PSF_output_axial_{datetime.now():%Y%m%d_%H%M}"
-os.makedirs(output_dir, exist_ok=True)
+image_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run{run_nr}/Run{run_nr}_MMStack_Pos0.ome.tif'
+csv_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run{run_nr}/PSF_crops_coords.csv'
+if save_bool:
+    output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run{run_nr}/PSF_output_axial_{datetime.now():%Y%m%d_%H%M}"
+    os.makedirs(output_dir, exist_ok=True)
 
 z_interval_um = 0.2 #um INPUT MANUALLY
-save_bool = True #True if you want to save PSF info and plot
+
+
+wavelength_um = 0.605 
+eta = 1.33 # RI of water 
+NA = 1.2 # numerical aperture of the objective 
+axial_resolution_limit = 2* wavelength_um * eta /(NA**2) #equation from p4 of handbook of biological confocal microscopy
+print(f"Axial resolution limit: {axial_resolution_limit:.2f} um")
 
 
 # # -----------------------------
@@ -152,7 +162,30 @@ normalized_profiles_z = [
 avg_profile_z_normalized = normalize(avg_profile_z)
 avg_profile_z_after_norm = np.mean([entry["profile"] for entry in normalized_profiles_z], axis=0)
 
+#%% 
+# --------------------
+# CENTER THE PSF
+# --------------------
+peak_idx = np.argmax(avg_profile_z_normalized)
+center_idx = len(avg_profile_z_normalized) // 2
+shift_amount = center_idx - peak_idx
 
+# Pad with 0's so no data is lost
+pad = abs(shift_amount)
+avg_profile_z_normalized_shifted = shift(
+    np.pad(avg_profile_z_normalized, pad, mode='constant', constant_values=0),
+    shift=shift_amount, mode='constant', cval=0
+)
+avg_profile_z_after_norm_shifted = shift(
+    np.pad(avg_profile_z_after_norm, pad, mode='constant', constant_values=0),
+    shift=shift_amount, mode='constant', cval=0
+)
+
+# Update z_axis to match new length
+z_axis_shifted = np.arange(len(avg_profile_z_normalized_shifted)) * z_interval_um
+z_axis_shifted -= z_axis_shifted[len(z_axis_shifted) // 2]  # center at 0
+
+#%%
 # # -----------------------------
 # # SAVE OUTPUT
 # # -----------------------------
@@ -162,6 +195,10 @@ if save_bool:
     # np.save(f"{output_dir}/avg_profile_y.npy", avg_profile_y)
     pd.DataFrame(avg_profile_z, columns=["intensity"]).to_csv(f"{output_dir}/avg_axial_psf.csv", index=False)
 
+    # Shifted profile
+    np.save(f"{output_dir}/avg_axial_psf_shifted.npy", avg_profile_z_normalized_shifted)
+    pd.DataFrame({"z_um": z_axis_shifted, "intensity": avg_profile_z_normalized_shifted}).to_csv(f"{output_dir}/avg_axial_psf_shifted.csv", index=False)
+
 
 
 # # -----------------------------
@@ -170,17 +207,6 @@ if save_bool:
 # #  Plot individual normalized bead profiles and average profile, colored by x and y position of the bead in the FOV
 # #  Plot averaged bead profile with and without normalization
 # # -----------------------------
-
-# plt.figure()
-# plt.plot(avg_profile_z, label="Average Z Profile", color='black', linewidth=2)
-# for entry in profiles_z:
-#     plt.plot(entry["profile"], label=f"Bead {entry['bead_id']}")
-#     # print(i, "here") 
-# plt.legend()
-# plt.title("Axial PSF Profiles")
-# plt.xlabel("Z slice")
-# plt.ylabel("Intensity")
-# plt.show()
 
 # Plot without normalization
 
@@ -194,6 +220,7 @@ cmap_x = plt.cm.viridis
  #plt.cm.plasma
 cmap_y = cmap_x.reversed()
 z_axis = np.arange(stack.shape[0]) * z_interval_um #to scale the z axis to real units (um) instead of slice index
+
 
 
 # Compare PSF profiles colored by x position, and bead positions in the FOV colored by x position. 
@@ -338,7 +365,7 @@ if save_bool:
 plt.show()
 
 
-# sse = np.sum((avg_profile_z_normalized - avg_profile_z_after_norm) ** 2)
+sse = np.sum((avg_profile_z_normalized - avg_profile_z_after_norm) ** 2)
 # print(f"Sum of squared errors between avg_profile_z_normalized and avg_profile_z_after_norm: {sse:.6f}")
 
 # calculate root mean squared error (RMSE) between avg_profile_z_normalized and avg_profile_z_after_norm
@@ -347,10 +374,10 @@ print(f"Root mean squared error between avg_profile_z_normalized and avg_profile
 
 # Plot avg_profile_z_normalized and avg_profile_z_after_norm together to check they are the same
 plt.figure()
-plt.plot(z_axis, avg_profile_z_normalized, color='red', linewidth=2, label="Average Z Profile (normalized)")
-plt.plot(z_axis, avg_profile_z_after_norm, color='blue', linewidth=2, label="Average of normalized profiles")
+plt.plot(z_axis_shifted, avg_profile_z_normalized_shifted, color='red', linewidth=2, label="Average Z Profile (normalized)")
+plt.plot(z_axis_shifted, avg_profile_z_after_norm_shifted, color='blue', linewidth=2, label="Average of normalized profiles")
 plt.legend()
-plt.title(f"Check average profile after normalization; rmse = {rmse:.6f}")
+plt.title(f"Average profile after normalization; center shifted, rmse = {rmse:.6f}")
 # plt.title(f"Check average profile after normalization; sse = {sse:.6f}, rmse = {rmse:.6f}")
 plt.xlabel("Z (µm))")
 plt.ylabel("Intensity")
@@ -359,17 +386,44 @@ if save_bool:
                 dpi=300, bbox_inches="tight")
 plt.show()
 
+
+
 #%%
-# Compare the average profile before and after normalization to see how normalization affects the average profile shape. 
-# sum of squared errors between avg_profile_z_normalized and avg_profile_z_after_norm
+# --------------------
+# GAUSSIAN FIT + FWHM   
+# --------------------
+#Fit a gaussian to the average axial profile and print the FWHM in z. 
+parameters_avg, _ = curve_fit(gaussian, z_axis, avg_profile_z_normalized)
+fit_A, fit_mu, fit_sigma = parameters_avg
+fit_y = gaussian(z_axis, fit_A, fit_mu, fit_sigma)
+
+# Calculate FWHM from sigma (fit_sigma)
+fwhm_avg = 2 * np.sqrt(2 * np.log(2)) * abs(fit_sigma)
+
+plt.plot(z_axis, avg_profile_z_normalized, label='Data')
+plt.plot(z_axis, fit_y, '-', label='Gaussian fit')
+plt.title(f'Gaussian Fit, FWHM = {fwhm_avg:.2f} um')
+plt.legend()
+plt.show()
+
+if save_bool:
+    fwhm_avg_px = fwhm_avg / z_interval_um
+    pd.DataFrame([{"fwhm_avg_um": fwhm_avg, "fwhm_avg_px": fwhm_avg_px, "axial_resolution_limit_um": axial_resolution_limit}]).to_csv(f"{output_dir}/fwhm_avg.csv", index=False)
+
+#%%
+#Fit a gaussian to the normalizedaverage axial profile and print the FWHM in z. 
+parameters_norm, _ = curve_fit(gaussian, z_axis, avg_profile_z_after_norm)
+fit_A, fit_mu, fit_sigma = parameters_norm
+fit_y = gaussian(z_axis, fit_A, fit_mu, fit_sigma)
+
+# Calculate FWHM from sigma (fit_sigma)
+fwhm_norm = 2 * np.sqrt(2 * np.log(2)) * abs(fit_sigma)
+
+plt.plot(z_axis, avg_profile_z_after_norm, label='Data')
+plt.plot(z_axis, fit_y, '-', label='Gaussian fit')
+plt.title(f'Gaussian Fit, FWHM = {fwhm_norm:.2f} um')
+plt.legend()
+plt.show()
 
 
 
-#Fit a gaussian to the average axial profile and print the FWHM in z. This is a common way to quantify the axial resolution of the microscope based on the PSF measurement.
-
-
-
-
-
-
-# %%

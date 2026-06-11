@@ -17,9 +17,9 @@ import xml.etree.ElementTree as ET
 fnum = 16 #to define run number
 
 path_movie = Path(
-# rf'/Users/andrealabudzki/Library/CloudStorage/OneDrive-AMOLF/Data/Multi photon tests/260512 Bruker/BrukerMultiphoton/Tom Demo 3/25x - Nile Red/No Water/ZSeries-11262025-1205-004/ZSeries-11262025-1205-004_Cycle00001_Ch1_000001.ome.tif'
+rf'/Users/andrealabudzki/Library/CloudStorage/OneDrive-AMOLF/Data/Multi photon tests/260512 Bruker/BrukerMultiphoton/Tom Demo 3/25x - Nile Red/No Water/ZSeries-11262025-1205-004/ZSeries-11262025-1205-004_Cycle00001_Ch1_000001.ome.tif'
 # '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260216/CFL2601A042/Run01/Run01_MMStack_Pos0.ome.tif'
-'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
+# '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
 )
 
 # Load as a NumPy array (ensure it’s contiguous)
@@ -54,13 +54,13 @@ print(z)
 
 # ----------------------
 
-z_interval = 1  #um
+z_interval = 2  #um
 # z_interval = 0.5 #um
 
-pixel_size = 6.5 #um
-magnification = 60  # adjust based on data
-pixel_size_true = pixel_size / magnification  # um
-# pixel_size_true = 512/352.77
+# pixel_size = 6.5 #um
+# magnification = 60  # adjust based on data
+# pixel_size_true = pixel_size / magnification  # um
+pixel_size_true = 512/352.77
 print(f"Pixel size (true): {pixel_size_true} um")   
 
 
