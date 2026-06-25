@@ -26,36 +26,41 @@ from skimage import color, data, restoration
 from PIL import Image
 from datetime import datetime
 
-# ---------------------
-# Creating random noise 
-# ---------------------
-# rng = np.random.default_rng()
-
 
 # ---------------------
 # Import 20X data 
 # ---------------------
-# astro = color.rgb2gray(data.astronaut())
+
+save_bool = False
+
 path_movie = Path(
     #20 x
-rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif'
     # 60 x
 # rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run02/Run02_MMStack_Pos0.ome.tif'
 # rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260408/CFL2601A049/Run03/Run03_MMStack_Pos0.ome.tif'
 # rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/250721/SAL2506A042/Mov20/Mov20_MMStack_Pos0.ome.tif'
 # rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260401/CFL2601A058/Run07/Run07_MMStack_Pos0.ome.tif'
-# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run4/Run4_MMStack_Pos0.ome.tif'
+rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run4/Run4_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260301/CFL2601A045/Run04/Run04_MMStack_Pos0.ome.tif'
 )
 
-with TiffFile(path_movie) as tif:
-    stack = tif.asarray()
 
-# Select a specific slice from the 2D stack (e.g., slice index 10)
-slice_index_t = 70 # first dim
-astro = stack[slice_index_t, :, :]
+with TiffFile(path_movie) as tif:
+    astro = tif.asarray()
+print(astro.shape)
+
+#%%
+
+z_int_data = 1 #um
+# Select a specific time point from the 3D stack 
+# slice_index_t = 8 # first time point
+slice_index_z = 8
+astro = astro[slice_index_z, :, :]
+
 
 print(astro.shape, astro.dtype, astro.min(), astro.max())
-
+#%%
 # Subtract background before normalizing
 astro = astro - astro.min()  # or use a proper background ROI if you have one
 
@@ -71,52 +76,21 @@ astro = astro / astro.max()
 # ---------------------
 # psf = np.ones((5, 5)) / 25
 
-#20x PSF
-psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/20x_objective/PSF_crops/PSF_output_20260410_1045/avg_psf.npy')
-
 #60x PSF
-# psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/60x_objective/PSF_crops/PSF_output_20260413_0932/avg_psf.npy')
+psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/2d/60x_objective/PSF_output_lateral_20260611_1230/avg_psf.npy')
+
+
 # Normalize so it sums to 1 (required for RL deconvolution)
 psf = psf / psf.sum()
 
 print("image slice shape:", astro.shape)  # should be (712, 1008)
 print("PSF shape:", psf.shape)            # should also be 2D
 
-# Artificial blurring of the image using convolution with the PSF
-# astro = conv2(astro, psf, 'same')
-# # Add Noise to Image
-# astro_noisy = astro.copy()
-# astro_noisy += (rng.poisson(lam=25, size=astro.shape) - 10) / 255.0
-
-# # Restore Image using Richardson-Lucy algorithm
-# deconvolved_RL = restoration.richardson_lucy(astro, psf, num_iter=30)
-# # deconvolved_RL = restoration.richardson_lucy(astro_noisy, psf, num_iter=30)
-
-# fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8, 5))
-# plt.gray()
-
-# for a in (ax[0], ax[1]):
-# # for a in (ax[0], ax[1], ax[2]):
-#     a.axis('off')
-
-# ax[0].imshow(astro)
-# ax[0].set_title('Original Data')
-
-# # ax[1].imshow(astro_noisy)
-# # ax[1].set_title('Noisy data')
-
-# ax[1].imshow(deconvolved_RL, vmin=astro.min(), vmax=astro.max())
-# # ax[1].imshow(deconvolved_RL, vmin=astro_noisy.min(), vmax=astro_noisy.max())
-# ax[1].set_title('Restoration using\nRichardson-Lucy')
-
-
-# fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
-# plt.show()
 
 # Restore Image using Richardson-Lucy algorithm at different iterations
 deconvolved_10 = restoration.richardson_lucy(astro, psf, num_iter=10)
-deconvolved_20 = restoration.richardson_lucy(astro, psf, num_iter=20)
-deconvolved_30 = restoration.richardson_lucy(astro, psf, num_iter=30)
+# deconvolved_20 = restoration.richardson_lucy(astro, psf, num_iter=20)
+# deconvolved_30 = restoration.richardson_lucy(astro, psf, num_iter=30)
 
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 5))
 plt.gray()
@@ -162,28 +136,29 @@ plt.show()
 
 # Save deconvolved images with timestamp as tifs and pngs
 
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/251128/CFL2510A005/Run4')
-save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/260408/CFL2601A049/Run01')
+# timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+# save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/251128/CFL2510A005/Run4')
+# save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/260408/CFL2601A049/Run01')
 # 260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif
 
 astro_uint8 = (astro * 255).astype(np.uint8)
 
 # Save original
-Image.fromarray(astro_uint8).save(
-    save_dir / f"Run01_t{slice_index_t}_original_{timestamp}.png"
-)
-
-# Save each deconvolved iteration as uint16 tif and uint8 png
-for n_iter, deconvolved in zip([10, 20, 30], [deconvolved_10, deconvolved_20, deconvolved_30]):
-    
-    # PNG
-    deconvolved_uint8 = (deconvolved * 255).astype(np.uint8)
-    Image.fromarray(deconvolved_uint8).save(
-        save_dir / f"Run01_t{slice_index_t}_deconvolved_RL_{n_iter}iter_{timestamp}.png"
+if save_bool:
+    Image.fromarray(astro_uint8).save(
+        save_dir / f"Run01_t{slice_index_t}_original_{timestamp}.png"
     )
-    
-    # TIF (uint16, only for 30 iter as before — or keep all if you want)
-    if n_iter == 30:
-        deconvolved_uint16 = (deconvolved * 65535).astype(np.uint16)
-        imwrite(save_dir / f"Run01_t{slice_index_t}_deconvolved_RL_{n_iter}iter_{timestamp}.tif", deconvolved_uint16)
+
+    # Save each deconvolved iteration as uint16 tif and uint8 png
+    for n_iter, deconvolved in zip([10, 20, 30], [deconvolved_10, deconvolved_20, deconvolved_30]):
+        
+        # PNG
+        deconvolved_uint8 = (deconvolved * 255).astype(np.uint8)
+        Image.fromarray(deconvolved_uint8).save(
+            save_dir / f"Run01_t{slice_index_t}_deconvolved_RL_{n_iter}iter_{timestamp}.png"
+        )
+        
+        # TIF (uint16, only for 30 iter as before — or keep all if you want)
+        if n_iter == 30:
+            deconvolved_uint16 = (deconvolved * 65535).astype(np.uint16)
+            imwrite(save_dir / f"Run01_t{slice_index_t}_deconvolved_RL_{n_iter}iter_{timestamp}.tif", deconvolved_uint16)

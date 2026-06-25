@@ -5,6 +5,7 @@ General instructions for deconvolution
 - import to PSF_measurement_csv.py to csv_path
 - import the image of the beads as well, to image_path
 - PSF_measurement_csv.py will take the intensity profiles of the beads located in the rectangles, align them and average them to give an averaged PSF
+- the code in LocoMyco assumes the PSF is ready.
 
 
 -------------------------

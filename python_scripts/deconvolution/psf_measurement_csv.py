@@ -80,6 +80,9 @@ def gaussian(x, A, mu, sigma):
 def normalize_profile(p):
     p = p - np.min(p)
     return p / np.max(p) if np.max(p) > 0 else p
+
+def calc_rayleigh_criterion(wavelength_um, NA):
+    return 0.61 * wavelength_um / NA
 #%%
 # -----------------------------
 # PARAMETERS
@@ -90,9 +93,9 @@ magnification = 60
 pixel_size_true = pixel_size_um / magnification  # um
 
 # Abbe diffraction limit
-NA = 1.2
-wavelength_um = 0.605  # INPUT MANUALLY: wavelength in um
-rayleigh_crit_um = 0.61*wavelength_um / NA
+my_NA = 1.2
+my_wavelength_um = 0.605  # INPUT MANUALLY: wavelength in um
+rayleigh_crit_um = calc_rayleigh_criterion(my_wavelength_um, my_NA)
 
 
 # -----------------------------

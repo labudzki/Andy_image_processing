@@ -1,22 +1,4 @@
-#%%
-"""
-=====================
-Image Deconvolution
-=====================
-In this example, we deconvolve an image using Richardson-Lucy
-deconvolution algorithm ([1]_, [2]_).
 
-The algorithm is based on a PSF (Point Spread Function),
-where PSF is described as the impulse response of the
-optical system. The blurred image is sharpened through a number of
-iterations, which needs to be hand-tuned.
-
-.. [1] William Hadley Richardson, "Bayesian-Based Iterative
-       Method of Image Restoration",
-       J. Opt. Soc. Am. A 27, 1593-1607 (1972), :DOI:`10.1364/JOSA.62.000055`
-
-.. [2] https://en.wikipedia.org/wiki/Richardson%E2%80%93Lucy_deconvolution
-"""
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,7 +17,8 @@ import napari
 # ---------------------
 # astro = color.rgb2gray(data.astronaut())
 path_movie = Path(
-rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
+rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260301/CFL2601A045/Run04/Run04_MMStack_Pos0.ome.tif'
 )
 
 with TiffFile(path_movie) as tif:
@@ -43,10 +26,12 @@ with TiffFile(path_movie) as tif:
 print(stack.shape)
 
 #%%
+
 z_int_data = 1 #um
 # Select a specific time point from the 3D stack 
-slice_index_t = 35 # first time point
-stack_single_timeframe = stack[slice_index_t, :, :, :]
+slice_index_t = 8 # first time point
+slice_index_z = 8
+stack_single_timeframe = stack[slice_index_t, slice_index_z, :, :]
 
 print(stack_single_timeframe.shape)
 
@@ -67,7 +52,11 @@ z_int_psf = 0.2 #um
 
 
 # need to downsample the psf to match the z interval of the data
-psf_resampled = zoom(psf, z_int_psf / z_int_data)
+psf_resampled = zoom(
+    psf,
+    zoom=(z_int_psf / z_int_data, 1, 1),
+    order=1
+)
 
 # Normalize to 1
 psf_resampled_norm = psf_resampled / psf_resampled.sum()
@@ -76,8 +65,7 @@ print("image slice shape:", astro.shape)
 print("PSF shape:", psf.shape) 
 print("PSF resampled shape:", psf_resampled_norm.shape)            
 
-# Reshape to (nz, 1, 1) so convolution only acts along z
-psf_3d = psf_resampled_norm[:, np.newaxis, np.newaxis]  # shape: (nz, 1, 1)
+psf_3d = psf_resampled_norm
 
 #%%
 n_iter = 10
