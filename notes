@@ -39,6 +39,8 @@ git commands:
   - git checkout -- path/to/file.py (discard changes in working directory for specific file)
   - git pull origin main (pull latest changes from remote main branch)
   - git pull 
+  - git stash: stash changes that are uncommitted
+    then you can do git pull, then run git stash pop to get the changes back
 
   Typical workflow:
     - git pull origin main

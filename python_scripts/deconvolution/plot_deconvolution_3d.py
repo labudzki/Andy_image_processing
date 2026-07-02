@@ -30,8 +30,8 @@ print(stack.shape)
 z_int_data = 1 #um
 # Select a specific time point from the 3D stack 
 slice_index_t = 8 # first time point
-slice_index_z = 8
-stack_single_timeframe = stack[slice_index_t, slice_index_z, :, :]
+# slice_index_z = 8
+stack_single_timeframe = stack[slice_index_t, :, :, :]
 
 print(stack_single_timeframe.shape)
 
