@@ -12,14 +12,17 @@ from mpl_toolkits.mplot3d import Axes3D
 # -----------------------------
 # USER INPUT
 # -----------------------------
-image_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/Run09_MMStack_Pos0.ome.tif'
-csv_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/PSF_crops_coords.csv'
-output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/Point spread function/3d/260518_Run09/PSF_output_3d_{datetime.now():%Y%m%d_%H%M}"
+nr = 13
+image_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF_data/3d/260706_Run{nr}/Stack_Run{nr}_MMStack_Pos0.ome.tif'
+csv_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF_data/3d/260706_Run{nr}/PSF_coords.csv'
+output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF_data/3d/260706_Run{nr}/PSF_output_3d_{datetime.now():%Y%m%d_%H%M}"
 os.makedirs(output_dir, exist_ok=True)
 
-z_interval_um = 0.2   # physical z step size in microns, used for correct aspect ratio in plots
+z_interval_um = 0.1   # physical z step size in microns, used for correct aspect ratio in plots
+# z_interval_um = 0.2 # um
 xy_window = 31        # lateral crop size in pixels (odd number so there is a well-defined center pixel)
-z_window = 41         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
+# z_window = 101         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
+
 save_bool = True      # set to False to skip saving outputs
 
 magnfication = 60 
@@ -33,6 +36,7 @@ print (pixel_size_xy_um)
 with TiffFile(image_path) as tif:
     stack = tif.asarray().astype('float32')  # load full 3D bead stack, shape (nz, ny, nx)
 print("Stack shape:", stack.shape)
+z_window = stack.shape[0] if stack.shape[0] % 2 == 1 else stack.shape[0] - 1 # use full z stack for cropping, set to odd number so peak is in the middle
 
 df = pd.read_csv(csv_path)  # load manually picked bead coordinates from napari/FIJI
 
