@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from tifffile import TiffFile
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.ndimage import center_of_mass, shift as ndi_shift
 
 # -----------------------------
 # USER INPUT
@@ -23,7 +24,7 @@ z_interval_um = 0.1   # physical z step size in microns, used for correct aspect
 xy_window = 31        # lateral crop size in pixels (odd number so there is a well-defined center pixel)
 # z_window = 101         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
 
-save_bool = True      # set to False to skip saving outputs
+save_bool = False      # set to False to skip saving outputs
 
 magnfication = 60 
 pixel_size_um = 6.5
@@ -36,7 +37,8 @@ print (pixel_size_xy_um)
 with TiffFile(image_path) as tif:
     stack = tif.asarray().astype('float32')  # load full 3D bead stack, shape (nz, ny, nx)
 print("Stack shape:", stack.shape)
-z_window = stack.shape[0] if stack.shape[0] % 2 == 1 else stack.shape[0] - 1 # use full z stack for cropping, set to odd number so peak is in the middle
+z_window = stack.shape[0]-20 if stack.shape[0] % 2 == 1 else stack.shape[0] - 21 # use full z stack for cropping, set to odd number so peak is in the middle
+# z_window = 121
 
 df = pd.read_csv(csv_path)  # load manually picked bead coordinates from napari/FIJI
 
@@ -93,6 +95,19 @@ def align_3d_crosscorr(bead, reference):
     )
     # apply the estimated shift to bring bead into alignment with reference
     return shift(bead, shift=shift_est, mode='nearest', order=1)
+
+def recenter_by_centroid(vol, threshold_frac=0.1):
+    """
+    Shift a bead volume so its intensity-weighted centroid sits at the array center.
+    Only considers voxels above threshold_frac * max to avoid background noise
+    pulling the centroid off target.
+    """
+    mask = vol > (threshold_frac * vol.max())
+    weighted = vol * mask
+    com = center_of_mass(weighted)  # (z, y, x) centroid
+    center = np.array(vol.shape) / 2 - 0.5  # array center (accounting for 0-indexing)
+    shift_vec = center - np.array(com)
+    return ndi_shift(vol, shift=shift_vec, mode='nearest', order=1), shift_vec
 
 def gaussian(x, A, mu, sigma):
     return A * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
@@ -178,10 +193,16 @@ def align_subvolumes(subvolumes):
         print("Only one subvolume, skipping alignment")
         return subvolumes
 
-    reference_vol = subvolumes[0]["volume"]  # use the first bead as the alignment target
+    # reference_vol = subvolumes[0]["volume"]  # use the first bead as the alignment target
+    # for entry in subvolumes:
+    #     entry["volume"] = align_3d_crosscorr(entry["volume"], reference_vol)
+    # print(f"Aligned {len(subvolumes)} subvolumes to bead {subvolumes[0]['bead_id']}")
+
+    print("Aligning subvolumes by recentering to intensity-weighted centroid")
     for entry in subvolumes:
-        entry["volume"] = align_3d_crosscorr(entry["volume"], reference_vol)
-    print(f"Aligned {len(subvolumes)} subvolumes to bead {subvolumes[0]['bead_id']}")
+        entry["volume"], shift_vec = recenter_by_centroid(entry["volume"])
+        print(f"Bead {entry['bead_id']}: centroid recenter shift = {shift_vec}")
+
 
     return subvolumes
 
@@ -192,6 +213,22 @@ def align_subvolumes(subvolumes):
 reference_z = find_bead_peaks(stack, df)       # step 1: find 3D peak location for each bead
 subvolumes = extract_subvolumes(stack, reference_z, z_window, xy_window)  # step 2: crop 3D subvolumes
 subvolumes = align_subvolumes(subvolumes)       # step 3: align subvolumes before averaging
+
+fig, axes = plt.subplots(len(subvolumes), 1, figsize=(6, 2*len(subvolumes)), sharex=True)
+for ax, entry in zip(axes, subvolumes):
+    print(entry["bead_id"])
+    vol = entry["volume"]
+    cz, cy, cx = np.array(vol.shape) // 2
+    ax.plot(vol[:, cy, cx])
+    ax.set_title(f"Bead {entry['bead_id']}")
+plt.tight_layout()
+plt.show()
+
+# bad_bead_ids = [10, 19]  # for PSF_data/3d/260706_Run{13}/Stack_Run{13}_MMStack_Pos0.ome.tif
+# subvolumes_clean = [entry for entry in subvolumes if entry["bead_id"] not in bad_bead_ids]
+
+# psf_3d = np.mean([entry["volume"] for entry in subvolumes_clean], axis=0)
+# psf_3d = psf_3d / psf_3d.sum()
 
 
 # -----------------------------

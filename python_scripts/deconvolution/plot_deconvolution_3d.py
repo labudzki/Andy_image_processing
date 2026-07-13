@@ -18,7 +18,8 @@ import napari
 # astro = color.rgb2gray(data.astronaut())
 path_movie = Path(
 # rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
-rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260301/CFL2601A045/Run04/Run04_MMStack_Pos0.ome.tif'
+# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260301/CFL2601A045/Run04/Run04_MMStack_Pos0.ome.tif'
+'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260702/CFL2605A123/Run04_150430/Stack_Run04_150430/Stack_Run04_150430_MMStack_Pos0.ome.tif'
 )
 
 with TiffFile(path_movie) as tif:
@@ -27,52 +28,69 @@ print(stack.shape)
 
 #%%
 
-z_int_data = 1 #um
+z_int_data = 0.5 #um
 # Select a specific time point from the 3D stack 
 slice_index_t = 8 # first time point
 # slice_index_z = 8
-stack_single_timeframe = stack[slice_index_t, :, :, :]
+stack_single_timeframe = stack[:28, :, :]
+# stack_single_timeframe = stack[slice_index_t, :, :, :]
 
 print(stack_single_timeframe.shape)
 
+my_stack = stack_single_timeframe
+
+# Stack pre processing
+
 # Subtract background before normalizing
-stack_single_timeframe = stack_single_timeframe - stack_single_timeframe.min()  # or use a proper background ROI if you have one
+my_stack_no_bg = my_stack - my_stack.min()  # or use a proper background ROI if you have one
 
 # Normalize
-astro = stack_single_timeframe / stack_single_timeframe.max()
+my_stack_norm = my_stack_no_bg / my_stack_no_bg.max()
 #%%
 
 # ---------------------
 # Import experimental PSF
 # ---------------------
 
-#60x WI axial PSF
 psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d.npy')
-z_int_psf = 0.2 #um
+z_int_psf = 0.1 #um
 
+# Crop the PSF in z so it doesn't span too many slices. the kernel needs to be smaller than the image for meaningful deconvolution
+id_mid = psf.shape[0] // 2
+range = 12 /(0.1*2)
+psf_cropped = psf[id_mid-range:id_mid+range, :, :] #120 -> 12 um deep instead of 30
+print(psf_cropped.shape)
 
 # need to downsample the psf to match the z interval of the data
 psf_resampled = zoom(
-    psf,
+    psf_cropped,
     zoom=(z_int_psf / z_int_data, 1, 1),
     order=1
 )
 
+
+
 # Normalize to 1
 psf_resampled_norm = psf_resampled / psf_resampled.sum()
+print(psf_resampled_norm.shape)
+#%%
 
-print("image slice shape:", astro.shape)  
+
+print("image slice shape:", my_stack_norm.shape)  
 print("PSF shape:", psf.shape) 
 print("PSF resampled shape:", psf_resampled_norm.shape)            
 
 psf_3d = psf_resampled_norm
 
+peak_z = np.unravel_index(np.argmax(psf_3d), psf_3d.shape)[0]
+print(peak_z, psf_3d.shape[0] // 2)
+
 #%%
 n_iter = 10
 # Restore Image using Richardson-Lucy algorithm at different iterations
-deconvolved_10 = restoration.richardson_lucy(astro, psf_3d, num_iter=n_iter)
-deconvolved_20 = restoration.richardson_lucy(astro, psf_3d, num_iter=n_iter+10)
-deconvolved_30 = restoration.richardson_lucy(astro, psf_3d, num_iter=n_iter+20)
+deconvolved_10 = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n_iter)
+deconvolved_20 = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n_iter+10)
+deconvolved_30 = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n_iter+20)
 print(deconvolved_10.shape)
 # -------------
 # plotting - 2D
@@ -86,16 +104,16 @@ for a in ax:
 
 z_plane_to_show = 10
 
-ax[0].imshow(astro[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+ax[0].imshow(my_stack_norm[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[0].set_title('Original Data (xy plane)')
 
-ax[1].imshow(deconvolved_10[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+ax[1].imshow(deconvolved_10[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[1].set_title(rf'RL – {n_iter} iterations (xy plane)')
 
-ax[2].imshow(deconvolved_20[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+ax[2].imshow(deconvolved_20[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[2].set_title(rf'RL – {n_iter + 10} iterations (xy plane)')
 
-# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 # ax[3].set_title(rf'RL – {n_iter + 20} iterations')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
@@ -106,7 +124,7 @@ plt.show()
 # plotting - planes
 # -------------
 
-y_plane_to_show = astro.shape[1] // 2  # center Y
+y_plane_to_show = my_stack_norm.shape[1] // 2  # center Y
 
 fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
 plt.gray()
@@ -115,23 +133,23 @@ for a in ax:
     a.axis('off')
 
 
-ax[0].imshow(astro[:, y_plane_to_show, :], vmin=astro.min(), vmax=astro.max())
+ax[0].imshow(my_stack_norm[:, y_plane_to_show, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[0].set_title('Original Data (xz plane)')
 
-ax[1].imshow(deconvolved_10[:, y_plane_to_show, :], vmin=astro.min(), vmax=astro.max())
+ax[1].imshow(deconvolved_10[:, y_plane_to_show, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[1].set_title(rf'RL – {n_iter} iterations (xz plane)')
 
-ax[2].imshow(deconvolved_20[:, y_plane_to_show, :], vmin=astro.min(), vmax=astro.max())
+ax[2].imshow(deconvolved_20[:, y_plane_to_show, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[2].set_title(rf'RL – {n_iter + 10} iterations (xz plane)')
 
-# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 # ax[3].set_title(rf'RL – {n_iter + 20} iterations')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
 plt.show()
 
 #%%
-x_plane_to_show = astro.shape[2] // 2  # center Y
+x_plane_to_show = my_stack_norm.shape[2] // 2  # center Y
 
 fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
 plt.gray()
@@ -140,16 +158,16 @@ for a in ax:
     a.axis('off')
 
 
-ax[0].imshow(astro[:, :, x_plane_to_show], vmin=astro.min(), vmax=astro.max())
+ax[0].imshow(my_stack_norm[:, :, x_plane_to_show], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[0].set_title('Original Data (yz plane)')
 
-ax[1].imshow(deconvolved_10[:, :, x_plane_to_show], vmin=astro.min(), vmax=astro.max())
+ax[1].imshow(deconvolved_10[:, :, x_plane_to_show], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[1].set_title(rf'RL – {n_iter} iterations (yz plane)')
 
-ax[2].imshow(deconvolved_20[:, :, x_plane_to_show], vmin=astro.min(), vmax=astro.max())
+ax[2].imshow(deconvolved_20[:, :, x_plane_to_show], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[2].set_title(rf'RL – {n_iter + 10} iterations (yz plane)')
 
-# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=astro.min(), vmax=astro.max())
+# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 # ax[3].set_title(rf'RL – {n_iter + 20} iterations')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
@@ -171,7 +189,7 @@ my_scale = (z_int_data, pixel_size_true, pixel_size_true)
 viewer = napari.Viewer(ndisplay=3)
 
 volume_layer = viewer.add_image(
-    astro, 
+    my_stack_norm, 
     rendering='mip', 
     name='volume', 
     blending= 'translucent', #'opaque', # 'additive', 
@@ -191,7 +209,7 @@ volume_layer2 = viewer.add_image(
 )
 
 volume_layer3 = viewer.add_image(
-    astro - deconvolved_10, 
+    my_stack_norm - deconvolved_10, 
     rendering='mip', 
     name='difference', 
     blending= 'translucent', #'opaque', # 'additive', 
@@ -216,10 +234,10 @@ if __name__ == '__main__':
 # save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/260408/CFL2601A049/Run01')
 # # 260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif
 
-# astro_uint8 = (astro * 255).astype(np.uint8)
+# my_stack_norm_uint8 = (my_stack_norm * 255).astype(np.uint8)
 
 # # Save original
-# Image.fromarray(astro_uint8).save(
+# Image.fromarray(my_stack_norm_uint8).save(
 #     save_dir / f"Run01_t{slice_index_t}_original_{timestamp}.png"
 # )
 
