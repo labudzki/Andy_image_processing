@@ -13,10 +13,12 @@ from scipy.ndimage import center_of_mass, shift as ndi_shift
 # -----------------------------
 # USER INPUT
 # -----------------------------
-nr = 13
-image_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF_data/3d/260706_Run{nr}/Stack_Run{nr}_MMStack_Pos0.ome.tif'
-csv_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF_data/3d/260706_Run{nr}/PSF_coords.csv'
-output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF_data/3d/260706_Run{nr}/PSF_output_3d_{datetime.now():%Y%m%d_%H%M}"
+nr = '01'
+my_date = '260723'
+my_time = '152610' # 160322
+image_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/{my_date}_Run{nr}/Stack_Run{nr}_{my_time}_MMStack_Pos0.ome.tif'
+csv_path = f'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/{my_date}_Run{nr}/PSF_coords.csv'
+output_dir = f"/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/{my_date}_Run{nr}/PSF_output_3d_{datetime.now():%Y%m%d_%H%M}"
 os.makedirs(output_dir, exist_ok=True)
 
 z_interval_um = 0.1   # physical z step size in microns, used for correct aspect ratio in plots
@@ -24,7 +26,7 @@ z_interval_um = 0.1   # physical z step size in microns, used for correct aspect
 xy_window = 31        # lateral crop size in pixels (odd number so there is a well-defined center pixel)
 # z_window = 101         # axial crop size in z slices (odd, and large enough to capture full PSF axial extent)
 
-save_bool = False      # set to False to skip saving outputs
+save_bool = True      # set to False to skip saving outputs
 
 magnfication = 60 
 pixel_size_um = 6.5
@@ -224,8 +226,9 @@ for ax, entry in zip(axes, subvolumes):
 plt.tight_layout()
 plt.show()
 
-# bad_bead_ids = [10, 19]  # for PSF_data/3d/260706_Run{13}/Stack_Run{13}_MMStack_Pos0.ome.tif
+# bad_bead_ids = [16, 17]  # for PSF_data/3d/260706_Run{13}/Stack_Run{13}_MMStack_Pos0.ome.tif
 # subvolumes_clean = [entry for entry in subvolumes if entry["bead_id"] not in bad_bead_ids]
+# print(f"Subvolumes: {len(subvolumes)}, Clean: {len(subvolumes_clean)}")
 
 # psf_3d = np.mean([entry["volume"] for entry in subvolumes_clean], axis=0)
 # psf_3d = psf_3d / psf_3d.sum()
@@ -293,6 +296,12 @@ fwhm_y_px = fwhm_y_um / pixel_size_xy_um
 fwhm_z_px = fwhm_z_um / z_interval_um
 
 # -----------------------------
+# FIND AND EXTRACT FWHMs of each individual bead
+# -----------------------------
+
+
+
+# -----------------------------
 # SAVE
 # -----------------------------
 if save_bool:
@@ -334,7 +343,7 @@ plt.tight_layout()
 if save_bool:
     plt.savefig(f"{output_dir}/psf_3d_projections.png", dpi=300)
 plt.show()
-
+#%%
 # -----------------------------
 # CENTRAL PROFILES PLOT
 # -----------------------------
@@ -404,7 +413,7 @@ plt.show()
 # if save_bool:
 #     plt.savefig(f"{output_dir}/psf_3d_scatter.png", dpi=300)
 # plt.show()
-
+#%%
 #Surface plot of MIP along z-axis
 Z = np.max(psf_3d, axis=0)
 
@@ -431,3 +440,4 @@ ax.set_zlabel("Intensity")
 ax.set_title("Maximum Intensity Projection")
 
 plt.show()
+

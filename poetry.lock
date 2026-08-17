@@ -1455,6 +1455,25 @@ lint = ["pre-commit (==3.7.0)"]
 test = ["pytest (>=7.4)", "pytest-cov (>=4.1)"]
 
 [[package]]
+name = "lightpipes"
+version = "2.1.5"
+description = "LightPipes for Python optical toolbox"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "LightPipes-2.1.5-py3-none-any.whl", hash = "sha256:0943916bf5e57a2197e337098ab8941132ffc706dabe99c7c03b2552fc107810"},
+]
+
+[package.dependencies]
+matplotlib = "*"
+numpy = "*"
+scipy = "*"
+
+[package.extras]
+pyfftw = ["pyfftw"]
+
+[[package]]
 name = "locket"
 version = "1.0.0"
 description = "File-based locks for Python on Linux and Windows"
@@ -4216,4 +4235,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "b118dd2673ac4486e48709bf9494a5ab9f4e6b5f4f3a3eb308fbef53e0463cee"
+content-hash = "42cd8071bd87f758b99bb3740a8cb75bfa2c0369666cd0e2f15629842be6b316"

@@ -52,13 +52,16 @@ my_stack_norm = my_stack_no_bg / my_stack_no_bg.max()
 # Import experimental PSF
 # ---------------------
 
-psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d.npy')
+# psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/260720_Run02/PSF_output_3d_20260720_1616/psf_3d.npy')
+psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/260723_Run01/PSF_output_3d_20260723_1649/psf_3d.npy')
+# psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d.npy')
 z_int_psf = 0.1 #um
 
 # Crop the PSF in z so it doesn't span too many slices. the kernel needs to be smaller than the image for meaningful deconvolution
 id_mid = psf.shape[0] // 2
-range = 12 /(0.1*2)
-psf_cropped = psf[id_mid-range:id_mid+range, :, :] #120 -> 12 um deep instead of 30
+my_range = int(12 /(0.1*2))
+print(id_mid, my_range)
+psf_cropped = psf[id_mid-my_range:id_mid+my_range, :, :] #120 -> 12 um deep instead of 30
 print(psf_cropped.shape)
 
 # need to downsample the psf to match the z interval of the data

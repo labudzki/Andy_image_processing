@@ -41,6 +41,12 @@ git commands:
   - git pull 
   - git stash: stash changes that are uncommitted
     then you can do git pull, then run git stash pop to get the changes back
+  - git fetch upstream  
+    This downloads any new commits from Paco's repo (upstream) into your local repository, but it does not touch your working files or your own branches. Git just updates a local reference called upstream/main (or upstream/master) so it matches whatever Paco's repo currently looks like. Think of it as "go check what's new over there and bring a copy of it here, but don't apply it yet."
+  - git merge upstream/main
+    This takes what you just fetched and actually combines it into your current branch (whatever branch you're on, e.g. main). Git compares your commit history with Paco's and:
+    If you haven't changed any of the same lines/files he has, it merges cleanly and automatically.
+    If you have changed the same lines (e.g., you edited a hardcoded path that Paco also touched), git will flag a merge conflict and ask you to manually decide which version to keep, line by line.
 
   Typical workflow:
     - git pull origin main
