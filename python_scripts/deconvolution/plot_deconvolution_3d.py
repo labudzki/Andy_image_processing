@@ -1,8 +1,29 @@
+"""
+Richardson-Lucy / Wiener Deconvolution of 3D Confocal AMF Stacks
+------------------------------------------------------------------
+Loads a 3D confocal image stack (OME-TIFF) and an experimentally measured
+PSF, matches the PSF's z-sampling to the data via binning (energy-
+conserving), and applies either Richardson-Lucy or Wiener deconvolution
+at a configurable set of parameter values for comparison.
+
+Workflow:
+1. Load raw image stack and normalize.
+2. Load experimental PSF, crop in z, and resample (bin) to match the
+   data's z-interval.
+3. Deconvolve using the method set by `method` ('RL' or 'wiener'), looping
+   over `n_iter_list` (RL) or `balance_list` (Wiener).
+4. Visualize original vs. deconvolved volumes in 2D (xy/xz/yz planes)
+   and in 3D (napari), for however many parameter values are specified.
+
+To change method or parameter values, edit `method`, `n_iter_list`, or
+`balance_list` — stats, 2D plots, and the napari viewer update
+automatically.
+"""
 
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
-from tifffile import imwrite, TiffFile
+from tifffile import imread, imwrite, TiffFile
 from pathlib import Path
 from scipy.signal import convolve2d as conv2
 from scipy.ndimage import zoom
@@ -13,249 +34,270 @@ import napari
 
 
 # ---------------------
-# Import 60X 3D data 
+# Import 60X 3D data
 # ---------------------
-# astro = color.rgb2gray(data.astronaut())
 path_movie = Path(
-# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/251128/CFL2510A005/Run10/Run10_MMStack_Pos0.ome.tif'
-# rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260301/CFL2601A045/Run04/Run04_MMStack_Pos0.ome.tif'
-'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260702/CFL2605A123/Run04_150430/Stack_Run04_150430/Stack_Run04_150430_MMStack_Pos0.ome.tif'
+    '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/RawData/260702/CFL2605A123/Run04_150430/Stack_Run04_150430/Stack_Run04_150430_MMStack_Pos0.ome.tif'
 )
 
 with TiffFile(path_movie) as tif:
     stack = tif.asarray()
-print(stack.shape)
+# print(stack.shape)
 
 #%%
-
-z_int_data = 0.5 #um
-# Select a specific time point from the 3D stack 
-slice_index_t = 8 # first time point
-# slice_index_z = 8
+psf_type = "exp"
+# psf_type = "num"
+z_int_data = 0.5  # um
+slice_index_t = 8
 stack_single_timeframe = stack[:28, :, :]
-# stack_single_timeframe = stack[slice_index_t, :, :, :]
 
-print(stack_single_timeframe.shape)
+# print(stack_single_timeframe.shape)
 
 my_stack = stack_single_timeframe
 
-# Stack pre processing
+# # save my_stack
+# output_path_stack = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/260702/CFL2605A123/Run04'
+# imwrite(output_path_stack + "/Run04_singleframe.tif", my_stack)
 
-# Subtract background before normalizing
-my_stack_no_bg = my_stack - my_stack.min()  # or use a proper background ROI if you have one
 
 # Normalize
-my_stack_norm = my_stack_no_bg / my_stack_no_bg.max()
+my_stack_norm = my_stack / my_stack.max()
+
 #%%
 
 # ---------------------
 # Import experimental PSF
 # ---------------------
 
-# psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/260720_Run02/PSF_output_3d_20260720_1616/psf_3d.npy')
-psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/RawData/260723_Run01/PSF_output_3d_20260723_1649/psf_3d.npy')
-# psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d.npy')
-z_int_psf = 0.1 #um
+psf = np.load('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d.npy')
+z_int_psf = 0.1  # um
+output_path_psf = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI'
+# imwrite(output_path_psf + "/psf_3d.tif", psf)
 
-# Crop the PSF in z so it doesn't span too many slices. the kernel needs to be smaller than the image for meaningful deconvolution
+print("\n original PSF")
+print(f"PSF shape: {psf.shape}")
+print(f"PSF min:  {psf.min():.4g}")
+print(f"PSF max:  {psf.max():.4g}")
+print(f"PSF sum:  {psf.sum():.4g}")
+print(f"PSF mean: {psf.mean():.4g}\n")
+
+# Crop the PSF in z so the kernel is smaller than the image
 id_mid = psf.shape[0] // 2
-my_range = int(12 /(0.1*2))
-print(id_mid, my_range)
-psf_cropped = psf[id_mid-my_range:id_mid+my_range, :, :] #120 -> 12 um deep instead of 30
-print(psf_cropped.shape)
-
-# need to downsample the psf to match the z interval of the data
-psf_resampled = zoom(
-    psf_cropped,
-    zoom=(z_int_psf / z_int_data, 1, 1),
-    order=1
-)
+my_range = int(12 / (0.1 * 2))
+# print(id_mid, my_range)
+psf_cropped = psf[id_mid - my_range:id_mid + my_range, :, :]
 
 
+print("\n cropped PSF ")
+print(f"PSF shape: {psf_cropped.shape}")
+print(f"PSF min:  {psf_cropped.min():.4g}")
+print(f"PSF max:  {psf_cropped.max():.4g}")
+print(f"PSF sum:  {psf_cropped.sum():.4g}")
+print(f"PSF mean: {psf_cropped.mean():.4g}\n")
 
-# Normalize to 1
+# Bin the resampling (conserves energy, unlike zoom)
+factor = int(z_int_data / z_int_psf)
+n_z = (psf_cropped.shape[0] // factor) * factor
+psf_trimmed = psf_cropped[:n_z]
+psf_resampled = psf_trimmed.reshape(
+    n_z // factor,
+    factor,
+    *psf_trimmed.shape[1:]
+).sum(axis=1)
 psf_resampled_norm = psf_resampled / psf_resampled.sum()
-print(psf_resampled_norm.shape)
+
+print("\n resampled PSF ")
+print(f"PSF shape: {psf_resampled.shape}")
+print(f"PSF min:  {psf_resampled.min():.4g}")
+print(f"PSF max:  {psf_resampled.max():.4g}")
+print(f"PSF sum:  {psf_resampled.sum():.4g}")
+print(f"PSF mean: {psf_resampled.mean():.4g}\n")
+
+print("\n resampled normalized PSF ")
+print(f"PSF shape: {psf_resampled_norm.shape}")
+print(f"PSF min:  {psf_resampled_norm.min():.4g}")
+print(f"PSF max:  {psf_resampled_norm.max():.4g}")
+print(f"PSF sum:  {psf_resampled_norm.sum():.4g}")
+print(f"PSF mean: {psf_resampled_norm.mean():.4g}\n")
+
+# imwrite(output_path_psf + "/psf_3d_resampled_norm.tif", psf)
+
+# %% uploading numerical PSF
+psf_num = imread('/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/numerical_psf.tif')
+z_int_psf_num = 0.5
+
+
 #%%
 
-
-print("image slice shape:", my_stack_norm.shape)  
-print("PSF shape:", psf.shape) 
-print("PSF resampled shape:", psf_resampled_norm.shape)            
+# print("image slice shape:", my_stack_norm.shape)
+# print("PSF shape:", psf.shape)
+# print("PSF resampled shape:", psf_resampled_norm.shape)
 
 psf_3d = psf_resampled_norm
+# psf_3d = psf_num
 
 peak_z = np.unravel_index(np.argmax(psf_3d), psf_3d.shape)[0]
-print(peak_z, psf_3d.shape[0] // 2)
+# print(peak_z, psf_3d.shape[0] // 2)
 
 #%%
-n_iter = 10
-# Restore Image using Richardson-Lucy algorithm at different iterations
-deconvolved_10 = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n_iter)
-deconvolved_20 = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n_iter+10)
-deconvolved_30 = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n_iter+20)
-print(deconvolved_10.shape)
 # -------------
-# plotting - 2D
+# Deconvolution settings
 # -------------
+method = 'RL'   # 'RL' for Richardson-Lucy, 'wiener' for Wiener deconvolution
+n_it = 50
+n_iter_list   = [n_it]           # used when method == 'RL'
+balance_list  = [0.01, 0.1]        # used when method == 'wiener' (regularization strength)
 
-fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
+output_path_data = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/deconvolution_test_data/PSF_exp'
+
+deconvolved = {}
+
+if method == 'RL':
+    for n in n_iter_list:
+        deconvolved[n] = restoration.richardson_lucy(my_stack_norm, psf_3d, num_iter=n, clip=True)
+    param_list = n_iter_list
+    param_label = 'iterations'
+    imwrite(output_path_data + f"/deconvolved_RL{n}_clip.tif", deconvolved[n])
+    print("deconvolved data saved")
+
+elif method == 'wiener':
+    for b in balance_list:
+        deconvolved[b] = restoration.wiener(my_stack_norm, psf_3d, balance=b)
+    param_list = balance_list
+    param_label = 'balance'
+    imwrite(output_path_data + f"/deconvolved_wiener{b}.tif", deconvolved[b])
+    print("deconvolved data saved")
+
+else:
+    raise ValueError(f"Unknown method '{method}'. Use 'RL' or 'wiener'.")
+#%%
+# save deconvolved data
+
+
+
+# checking min and max for deconvolved images
+for p, img in deconvolved.items():
+    print(f"{method} {p}: min={img.min():.4f}, max={img.max():.4f}")
+
+# Stats
+print(
+    f"{'original':10s} "
+    f"min={my_stack_norm.min():.6g}, max={my_stack_norm.max():.6g}, "
+    f"mean={my_stack_norm.mean():.6g}, 99%={np.percentile(my_stack_norm, 99):.6g}, "
+    f"99.9%={np.percentile(my_stack_norm, 99.9):.6g}, 99.99%={np.percentile(my_stack_norm, 99.99):.6g}"
+)
+for p, img in deconvolved.items():
+    print(
+        f"{method} {p:<7} "
+        f"min={img.min():.6g}, max={img.max():.6g}, "
+        f"mean={img.mean():.6g}, 99%={np.percentile(img, 99):.6g}, "
+        f"99.9%={np.percentile(img, 99.9):.6g}, 99.99%={np.percentile(img, 99.99):.6g}"
+    )
+
+# print("input max:", my_stack_norm.max())
+# for p, img in deconvolved.items():
+#     print(f"{method} {p} max:", img.max())
+#     print(f"{method} {p} > 1:", np.sum(img > 1))
+
+#%%
+# -------------
+# plotting - 2D (xy plane)
+# -------------
+z_plane_to_show = 10
+n_rows = 1 + len(param_list)
+
+fig, ax = plt.subplots(nrows=n_rows, ncols=1, figsize=(16, 5 * n_rows / 3))
 plt.gray()
-
 for a in ax:
     a.axis('off')
-
-z_plane_to_show = 10
 
 ax[0].imshow(my_stack_norm[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[0].set_title('Original Data (xy plane)')
 
-ax[1].imshow(deconvolved_10[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-ax[1].set_title(rf'RL – {n_iter} iterations (xy plane)')
-
-ax[2].imshow(deconvolved_20[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-ax[2].set_title(rf'RL – {n_iter + 10} iterations (xy plane)')
-
-# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-# ax[3].set_title(rf'RL – {n_iter + 20} iterations')
+for i, p in enumerate(param_list):
+    ax[i + 1].imshow(deconvolved[p][z_plane_to_show, :, :], vmin=deconvolved[p].min(), vmax=deconvolved[p].max())
+    ax[i + 1].set_title(rf'{method} – {p} {param_label} (xy plane)')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
 plt.show()
 
 #%%
 # -------------
-# plotting - planes
+# plotting - xz plane
 # -------------
+y_plane_to_show = my_stack_norm.shape[1] // 2
 
-y_plane_to_show = my_stack_norm.shape[1] // 2  # center Y
-
-fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
+fig, ax = plt.subplots(nrows=n_rows, ncols=1, figsize=(16, 5 * n_rows / 3))
 plt.gray()
-
 for a in ax:
     a.axis('off')
-
 
 ax[0].imshow(my_stack_norm[:, y_plane_to_show, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[0].set_title('Original Data (xz plane)')
 
-ax[1].imshow(deconvolved_10[:, y_plane_to_show, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-ax[1].set_title(rf'RL – {n_iter} iterations (xz plane)')
-
-ax[2].imshow(deconvolved_20[:, y_plane_to_show, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-ax[2].set_title(rf'RL – {n_iter + 10} iterations (xz plane)')
-
-# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-# ax[3].set_title(rf'RL – {n_iter + 20} iterations')
+for i, p in enumerate(param_list):
+    ax[i + 1].imshow(deconvolved[p][:, y_plane_to_show, :], vmin=deconvolved[p].min(), vmax=deconvolved[p].max())
+    ax[i + 1].set_title(rf'{method} – {p} {param_label} (xz plane)')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
 plt.show()
 
 #%%
-x_plane_to_show = my_stack_norm.shape[2] // 2  # center Y
+# -------------
+# plotting - yz plane
+# -------------
+x_plane_to_show = my_stack_norm.shape[2] // 2
 
-fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(16, 5))
+fig, ax = plt.subplots(nrows=n_rows, ncols=1, figsize=(16, 5 * n_rows / 3))
 plt.gray()
-
 for a in ax:
     a.axis('off')
-
 
 ax[0].imshow(my_stack_norm[:, :, x_plane_to_show], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
 ax[0].set_title('Original Data (yz plane)')
 
-ax[1].imshow(deconvolved_10[:, :, x_plane_to_show], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-ax[1].set_title(rf'RL – {n_iter} iterations (yz plane)')
-
-ax[2].imshow(deconvolved_20[:, :, x_plane_to_show], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-ax[2].set_title(rf'RL – {n_iter + 10} iterations (yz plane)')
-
-# ax[3].imshow(deconvolved_30[z_plane_to_show, :, :], vmin=my_stack_norm.min(), vmax=my_stack_norm.max())
-# ax[3].set_title(rf'RL – {n_iter + 20} iterations')
+for i, p in enumerate(param_list):
+    ax[i + 1].imshow(deconvolved[p][:, :, x_plane_to_show], vmin=deconvolved[p].min(), vmax=deconvolved[p].max())
+    ax[i + 1].set_title(rf'{method} – {p} {param_label} (yz plane)')
 
 fig.subplots_adjust(wspace=0.02, hspace=0.2, top=0.9, bottom=0.05, left=0, right=1)
 plt.show()
 
-
 #%%
 # -------------
-# plotting - 3D
+# plotting - 3D (napari)
 # -------------
-
-pixel_size = 6.5 #um
-magnification = 60  # adjust based on data
-pixel_size_true = pixel_size / magnification  # um
-# # pixel_size_true = 512/352.77
-# print(f"Pixel size (true): {pixel_size_true} um")   
-
+pixel_size = 6.5  # um
+magnification = 60
+pixel_size_true = pixel_size / magnification
 my_scale = (z_int_data, pixel_size_true, pixel_size_true)
+
 viewer = napari.Viewer(ndisplay=3)
 
-volume_layer = viewer.add_image(
-    my_stack_norm, 
-    rendering='mip', 
-    name='volume', 
-    blending= 'translucent', #'opaque', # 'additive', 
+viewer.add_image(
+    my_stack_norm,
+    rendering='mip',
+    name='volume',
+    blending='translucent',
     opacity=1,
-    colormap = 'inferno', 
+    colormap='inferno',
     scale=my_scale
 )
 
-volume_layer2 = viewer.add_image(
-    deconvolved_10, 
-    rendering='mip', 
-    name='deconvolved volume', 
-    blending= 'translucent', #'opaque', # 'additive', 
-    opacity=1,
-    colormap = 'inferno', 
-    scale=my_scale
-)
-
-volume_layer3 = viewer.add_image(
-    my_stack_norm - deconvolved_10, 
-    rendering='mip', 
-    name='difference', 
-    blending= 'translucent', #'opaque', # 'additive', 
-    opacity=1,
-    colormap = 'inferno', 
-    scale=my_scale
-)
+for p, img in deconvolved.items():
+    viewer.add_image(
+        img,
+        rendering='mip',
+        name=f'{method} volume {p}',
+        blending='translucent',
+        opacity=1,
+        colormap='inferno',
+        scale=my_scale
+    )
 
 viewer.axes.visible = True
 viewer.camera.angles = (45, 45, 45)
 viewer.camera.zoom = 1
 
- # Run napari
 if __name__ == '__main__':
     napari.run()
-
-
-# # Save deconvolved images with timestamp as tifs and pngs
-
-# timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-# save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/251128/CFL2510A005/Run4')
-# save_dir = Path(rf'/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/260408/CFL2601A049/Run01')
-# # 260408/CFL2601A049/Run01/Run01_MMStack_Pos0.ome.tif
-
-# my_stack_norm_uint8 = (my_stack_norm * 255).astype(np.uint8)
-
-# # Save original
-# Image.fromarray(my_stack_norm_uint8).save(
-#     save_dir / f"Run01_t{slice_index_t}_original_{timestamp}.png"
-# )
-
-# # Save each deconvolved iteration as uint16 tif and uint8 png
-# for n_iter, deconvolved in zip([10, 20, 30], [deconvolved_10, deconvolved_20, deconvolved_30]):
-    
-#     # PNG
-#     deconvolved_uint8 = (deconvolved * 255).astype(np.uint8)
-#     Image.fromarray(deconvolved_uint8).save(
-#         save_dir / f"Run01_t{slice_index_t}_deconvolved_RL_{n_iter}iter_{timestamp}.png"
-#     )
-    
-#     # TIF (uint16, only for 30 iter as before — or keep all if you want)
-#     if n_iter == 30:
-#         deconvolved_uint16 = (deconvolved * 65535).astype(np.uint16)
-#         imwrite(save_dir / f"Run01_t{slice_index_t}_deconvolved_RL_{n_iter}iter_{timestamp}.tif", deconvolved_uint16)
-
-# %%
