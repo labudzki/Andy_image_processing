@@ -3,12 +3,16 @@ from pathlib import Path
 import numpy as np
 from tifffile import imread, imwrite, TiffFile
 
-java_path = "/Applications/Fiji/java/macos-arm64/zulu21.42.19-ca-jdk21.0.7-macosx_aarch64/zulu-21.jdk/Contents/Home/bin/java"
-java_path = "java"
-jar_path = Path("/Applications/Fiji/plugins/DeconvolutionLab_2.jar")
+
+# -----------------------
+# FUNCTIONS
+# -----------------------
 
 def run_dl2_rl(image_path, psf_path, out_dir, out_name, n_iter):
-    """Run DeconvolutionLab2 Richardson-Lucy via CLI on a single image/PSF pair."""
+    """
+    Run DeconvolutionLab2 Richardson-Lucy via CLI on a single image/PSF pair.
+    """
+
     cmd = [
         java_path, "-jar", str(jar_path), "Run",
         "-image", "file", str(image_path),
@@ -28,6 +32,28 @@ def run_dl2_rl(image_path, psf_path, out_dir, out_name, n_iter):
 
     return Path(out_dir) / f"{out_name}.tif"
 
+def read_video_stack(video_path):
+    """
+    Read a multi-frame TIFF and report its axes order (e.g. 'TZYX').
+    """
+    
+    with TiffFile(video_path) as tif:
+        series = tif.series[0]
+        axes = series.axes
+        data = series.asarray()
+    return data, axes
+
+# -----------------------
+# SETUP PARAMS
+# -----------------------
+
+# java_path = "/Applications/Fiji/java/macos-arm64/zulu21.42.19-ca-jdk21.0.7-macosx_aarch64/zulu-21.jdk/Contents/Home/bin/java"
+java_path = "java"
+jar_path = Path("/Applications/Fiji/plugins/DeconvolutionLab_2.jar")
+psf_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d_resampled_norm.tif'
+
+n = 10
+
 # example: loop over a batch of stacks
 data = [
     "/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/5. Lipids and Organelles imaging/Analysis/260702/CFL2605A123/Run04/Run04_singleframe.tif",
@@ -35,9 +61,6 @@ data = [
     # "/path/to/stack2.tif"
 ]
 
-psf_path = '/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/Nikon_CFI_PlanApo_VC_60X_WI/psf_3d_resampled_norm.tif'
-
-n = 10
 
 for img in data:
     out_path = run_dl2_rl(img, psf_path, out_dir="/Users/andrealabudzki/Library/CloudStorage/Dropbox-AMOLF-SHIMIZU/DATA/Ach_data/x. SetUp Charac/PSF/PSF_data/deconvolution_test_data/python_output", out_name=Path(img).stem + "_DL2_RL50", n_iter = n)
